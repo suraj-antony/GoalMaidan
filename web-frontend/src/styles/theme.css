@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --card: #ffffff;
+  --txt: #1a1a1a;
+  --txt2: #666666;
+  --border: #e0e0e0;
+  --green: #1a6b2f;
+  --green-bg: #d4edda;
+}
+
+[data-theme="dark"] {
+  --bg: #0f0f0f;
+  --bg2: #1a1a1a;
+  --card: #1e1e1e;
+  --txt: #f0f0f0;
+  --txt2: #aaaaaa;
+  --border: #2a2a2a;
+  --green: #2ecc6a;
+  --green-bg: #0d2e1a;
+}
+
+body {
+  background-color: var(--bg2);
+  color: var(--txt);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Chip selected state fallback ─────────────────────────────────────────── */
+.chip-selected {
+  background-color: #15803d !important; /* green-700 */
+  border-color: #15803d !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.chip-unselected {
+  background-color: #ffffff;
+  border-color: #d1d5db; /* gray-300 */
+  color: #1f2937; /* gray-800 */
+  font-weight: 700;
+}
+
+/* ── Primary button fallback ───────────────────────────────────────────────── */
+.btn-primary {
+  background-color: #15803d !important; /* green-700 */
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-primary:hover {
+  background-color: #166534 !important; /* green-800 */
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Secondary button fallback ─────────────────────────────────────────────── */
+.btn-secondary {
+  background-color: #ffffff;
+  color: #374151; /* gray-700 */
+  font-weight: 500;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-secondary:hover {
+  background-color: #f9fafb;
+}
+
+/* ── Spin animation (used by inline-styled spinners) ───────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
