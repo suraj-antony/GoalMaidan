@@ -47,8 +47,12 @@ class TournamentAwardView(APIView):
 
         if not award_type:
             return Response({"error": "award_type is required"}, status=status.HTTP_400_BAD_REQUEST)
-        if not player_name:
-            return Response({"error": "player_name is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if award_type == 'best_team':
+            if not team_name:
+                return Response({"error": "team_name is required for best_team award"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if not player_name:
+                return Response({"error": "player_name is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Upsert: update existing or create new
         award, created = TournamentAward.objects.update_or_create(

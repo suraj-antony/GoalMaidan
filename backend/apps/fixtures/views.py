@@ -332,61 +332,164 @@ def generate_knockout_after_league(request, tournament_id):
     else:
         stage = 'round_of_16'
 
-    # Create fixtures: 1st vs last, 2nd vs 2nd-last (seeded bracket)
-    fixtures_to_create = []
-    lo, hi = 0, len(teams_ordered) - 1
-    round_num = 1
+    from apps.fixtures.generator import generate_full_bracket
 
-    while lo < hi:
-        fixtures_to_create.append(Fixture(
-            tournament=tournament,
-            stage=stage,
-            round_number=round_num,
-            team_a=teams_ordered[lo],
-            team_b=teams_ordered[hi],
-            status='scheduled',
-        ))
-        lo += 1
-        hi -= 1
-        round_num += 1
-
-    # Add placeholder fixtures for subsequent rounds
-    remaining = lo  # number of matches in first round (n // 2)
-    next_rnd = round_num  # continue round numbers
-    while remaining >= 2:
-        remaining //= 2
-        if remaining <= 1:
-            next_stage = 'final'
-        elif remaining <= 2:
-            next_stage = 'semi'
-        elif remaining <= 4:
-            next_stage = 'quarter'
-        else:
-            next_stage = 'round_of_16'
-
-        for _ in range(remaining):
-            fixtures_to_create.append(Fixture(
-                tournament=tournament,
-                stage=next_stage,
-                round_number=next_rnd,
-                team_a=None,
-                team_b=None,
-                status='scheduled',
-            ))
-            next_rnd += 1
-
-    Fixture.objects.bulk_create(fixtures_to_create)
+    generate_full_bracket(tournament, teams_ordered)
 
     # Reset tournament status to active so organizer can record scores for the new knockout fixtures
     tournament.status = 'active'
     tournament.completed_at = None
     tournament.save()
 
+    fixture_count = tournament.fixtures.filter(
+        round_number=1,
+        stage__in=['final', 'semi', 'quarter', 'round_of_16', 'round_of_32']
+    ).count()
+
     return Response({
         'message': 'Knockout fixtures created successfully.',
-        'stage': stage,
-        'fixture_count': len(fixtures_to_create),
+        'fixture_count': fixture_count,
         'qualified_teams': [t.name for t in teams_ordered],
+    }, status=201)
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MANUAL KNOCKOUT ROUND ADVANCEMENT
+# ─────────────────────────────────────────────────────────────────────────────
+
+KNOCKOUT_STAGES = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+
+# Stage name to assign based on winner count going INTO a round
+def _next_stage_for_winner_count(n):
+    if n <= 2:
+        return 'final'
+    elif n <= 4:
+        return 'semi'
+    elif n <= 8:
+        return 'quarter'
+    elif n <= 16:
+        return 'round_of_16'
+    elif n <= 32:
+        return 'round_of_32'
+    else:
+        return 'round_of_64'
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def advance_knockout_round(request, tournament_id):
+    """
+    POST /api/fixtures/advance-knockout/<tournament_id>/
+
+    In **manual** fixture mode, once all matches in the current knockout round
+    are completed, this endpoint:
+      1. Collects the winner of every current-round fixture.
+      2. Determines the correct next-stage label (semi, final, etc.).
+      3. Creates the next round's fixtures with the winning teams pre-filled.
+
+    Works for all tournament types (knockout, league_knockout, etc.) — only
+    the knockout-phase fixtures are considered.
+    """
+    from collections import defaultdict
+
+    tournament = get_object_or_404(Tournament, id=tournament_id)
+
+    if tournament.organiser != request.user:
+        return Response({'error': 'Permission denied'}, status=403)
+
+    if tournament.fixture_generation_mode != 'manual':
+        return Response(
+            {'error': 'This endpoint is only available for manually managed tournaments.'},
+            status=400
+        )
+
+    # ── Collect the relevant fixtures ────────────────────────────────────────
+    # For pure knockout tournaments, ALL fixtures are knockout fixtures.
+    # For league_knockout, only the knockout-stage fixtures.
+    if tournament.tournament_type == 'knockout':
+        all_ko = list(
+            Fixture.objects.filter(tournament=tournament)
+            .order_by('round_number', 'created_at')
+        )
+    else:
+        all_ko = list(
+            Fixture.objects.filter(tournament=tournament, stage__in=KNOCKOUT_STAGES)
+            .order_by('round_number', 'created_at')
+        )
+
+    if not all_ko:
+        return Response({'error': 'No knockout fixtures found for this tournament.'}, status=400)
+
+    # ── Group by round_number (treat None as round 1) ────────────────────────
+    by_round = defaultdict(list)
+    for f in all_ko:
+        rn = f.round_number if f.round_number is not None else 1
+        by_round[rn].append(f)
+
+    sorted_rounds = sorted(by_round.keys())
+
+    # ── Find the last fully-completed round ───────────────────────────────────
+    current_round_num = None
+    current_round_fixtures = None
+
+    for rn in sorted_rounds:
+        group = by_round[rn]
+        if all(f.status == 'completed' for f in group):
+            current_round_num = rn
+            current_round_fixtures = group
+        else:
+            break  # Stop at first incomplete round
+
+    if current_round_fixtures is None:
+        return Response({'error': 'No fully-completed knockout round found yet.'}, status=400)
+
+    # ── Check next round doesn't already exist ────────────────────────────────
+    next_round_num = current_round_num + 1
+    if next_round_num in by_round:
+        return Response({'error': 'The next round has already been created.'}, status=400)
+
+    # ── Collect winners in bracket order ──────────────────────────────────────
+    winners = []
+    for f in current_round_fixtures:
+        if f.winner:
+            winners.append(f.winner)
+        elif f.score_a is not None and f.score_b is not None:
+            if f.score_a > f.score_b:
+                winners.append(f.team_a)
+            elif f.score_b > f.score_a:
+                winners.append(f.team_b)
+            # Draw with no explicit winner — skip (shouldn't happen in knockout)
+
+    if len(winners) < 2:
+        msg = ('Only one winner remains — this was the final round. '
+               'No further knockout round is needed.')
+        return Response({'error': msg, 'is_tournament_final': True}, status=400)
+
+    # ── Determine the next stage label ────────────────────────────────────────
+    next_stage = _next_stage_for_winner_count(len(winners))
+
+    # ── Create next-round fixtures ────────────────────────────────────────────
+    new_fixtures = []
+    for i in range(0, len(winners), 2):
+        team_a = winners[i]
+        team_b = winners[i + 1] if i + 1 < len(winners) else None
+        f = Fixture.objects.create(
+            tournament=tournament,
+            stage=next_stage,
+            round_number=next_round_num,
+            team_a=team_a,
+            team_b=team_b,
+            status='scheduled',
+        )
+        new_fixtures.append(f)
+
+    stage_display = next_stage.replace('_', ' ').title()
+    return Response({
+        'message': f'Advanced to {stage_display}! {len(new_fixtures)} match(es) created.',
+        'next_stage': next_stage,
+        'next_round_number': next_round_num,
+        'fixtures': FixtureSerializer(new_fixtures, many=True).data,
     }, status=201)
 
 
@@ -497,6 +600,62 @@ def validate_fixture_duplicate(tournament, team_a_id, team_b_id, stage=None, exc
 
     return None
 
+def validate_knockout_eligibility(tournament, team_a_id, team_b_id, exclude_fixture_id=None):
+    if not team_a_id or not team_b_id:
+        return None
+
+    from django.db.models import Q
+    ko_fixtures = Fixture.objects.filter(tournament=tournament)
+    if tournament.tournament_type == 'league_knockout':
+        ko_fixtures = ko_fixtures.exclude(stage='league')
+
+    def get_team_status(team_id):
+        # 1. Check if team has lost any completed KO fixture
+        lost = ko_fixtures.filter(status='completed').filter(
+            Q(team_a_id=team_id) | Q(team_b_id=team_id)
+        ).exclude(winner_id=team_id).exists()
+        if lost:
+            return False, "eliminated", 0
+
+        # 2. Check if team is currently busy in an incomplete KO fixture
+        query = ko_fixtures.exclude(status='completed')
+        if exclude_fixture_id:
+            query = query.exclude(id=exclude_fixture_id)
+        busy = query.filter(Q(team_a_id=team_id) | Q(team_b_id=team_id)).exists()
+        if busy:
+            return False, "busy in another match", 0
+
+        # 3. Calculate wins count
+        wins = ko_fixtures.filter(status='completed', winner_id=team_id).count()
+        return True, "eligible", wins
+
+    ok_a, status_a, wins_a = get_team_status(team_a_id)
+    if not ok_a:
+        try:
+            team_name = Team.objects.get(id=team_a_id).name
+        except Team.DoesNotExist:
+            team_name = "Team A"
+        return f"{team_name} is {status_a} and cannot be scheduled."
+
+    ok_b, status_b, wins_b = get_team_status(team_b_id)
+    if not ok_b:
+        try:
+            team_name = Team.objects.get(id=team_b_id).name
+        except Team.DoesNotExist:
+            team_name = "Team B"
+        return f"{team_name} is {status_b} and cannot be scheduled."
+
+    if wins_a != wins_b:
+        return f"Teams are in different rounds (Team A has {wins_a} win(s), Team B has {wins_b} win(s))."
+
+    return None
+
+def _round_number_from_stage(stage):
+    order = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+    if stage in order:
+        return order.index(stage) + 1
+    return 1
+
 class FixtureListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -518,6 +677,8 @@ class FixtureListView(APIView):
         # Auto-advance: fill next-round placeholders if previous stage is fully complete
         # This handles cases where semis were already done before this feature existed.
         knockout_stages = [
+            ('round_of_64', 'round_of_32'),
+            ('round_of_32', 'round_of_16'),
             ('round_of_16', 'quarter'),
             ('quarter', 'semi'),
             ('semi', 'final'),
@@ -552,10 +713,34 @@ class FixtureListView(APIView):
         if dup_error:
             return Response({"error": dup_error}, status=status.HTTP_400_BAD_REQUEST)
 
+        is_knockout = (
+            tournament.tournament_type == 'knockout' or
+            request.data.get('stage') not in ['league', None]
+        )
+        # In manual mode the organiser freely assigns teams to any stage—skip eligibility checks
+        if is_knockout and tournament.fixture_generation_mode != 'manual':
+            ko_error = validate_knockout_eligibility(
+                tournament,
+                request.data.get('team_a'),
+                request.data.get('team_b')
+            )
+            if ko_error:
+                return Response({"error": ko_error}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = FixtureSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            fixture = serializer.save()
+            if is_knockout:
+                if tournament.fixture_generation_mode == 'manual':
+                    fixture.round_number = _round_number_from_stage(fixture.stage)
+                else:
+                    ko_fixtures = Fixture.objects.filter(tournament=tournament)
+                    if tournament.tournament_type == 'league_knockout':
+                        ko_fixtures = ko_fixtures.exclude(stage='league')
+                    wins = ko_fixtures.filter(status='completed', winner_id=fixture.team_a_id).count()
+                    fixture.round_number = wins + 1
+                fixture.save(update_fields=['round_number'])
+            return Response(FixtureSerializer(fixture).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class FixtureDetailView(APIView):
@@ -581,11 +766,36 @@ class FixtureDetailView(APIView):
         )
         if dup_error:
             return Response({"error": dup_error}, status=status.HTTP_400_BAD_REQUEST)
-            
+
+        is_knockout = (
+            fixture.tournament.tournament_type == 'knockout' or
+            request.data.get('stage', fixture.stage) not in ['league', None]
+        )
+        # In manual mode the organiser freely assigns teams to any stage—skip eligibility checks
+        if is_knockout and fixture.tournament.fixture_generation_mode != 'manual':
+            ko_error = validate_knockout_eligibility(
+                fixture.tournament,
+                request.data.get('team_a', fixture.team_a_id),
+                request.data.get('team_b', fixture.team_b_id),
+                exclude_fixture_id=fixture.id
+            )
+            if ko_error:
+                return Response({"error": ko_error}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = FixtureSerializer(fixture, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            fixture = serializer.save()
+            if is_knockout:
+                if fixture.tournament.fixture_generation_mode == 'manual':
+                    fixture.round_number = _round_number_from_stage(fixture.stage)
+                else:
+                    ko_fixtures = Fixture.objects.filter(tournament=fixture.tournament)
+                    if fixture.tournament.tournament_type == 'league_knockout':
+                        ko_fixtures = ko_fixtures.exclude(stage='league')
+                    wins = ko_fixtures.filter(status='completed', winner_id=fixture.team_a_id).count()
+                    fixture.round_number = wins + 1
+                fixture.save(update_fields=['round_number'])
+            return Response(FixtureSerializer(fixture).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
@@ -623,8 +833,8 @@ class MatchResultView(APIView):
             fixture.match_time = data['match_time']
 
         # Penalty shootout (knockout draws only)
-        knockout_stages = ['quarter', 'semi', 'third_place', 'final', 'round_of_16']
-        is_knockout = fixture.stage in knockout_stages
+        knockout_stages = ['round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final']
+        is_knockout = fixture.tournament.tournament_type == 'knockout' or fixture.stage in knockout_stages
         is_draw = fixture.score_a == fixture.score_b
 
         if is_knockout and is_draw:
@@ -666,7 +876,18 @@ class MatchResultView(APIView):
             else:
                 fixture.winner = None
 
+        if is_knockout and fixture.score_a == fixture.score_b and not fixture.winner:
+            return Response({
+                'error': 'Knockout matches cannot end in a draw without a winner. '
+                         'Please enter a penalty shootout winner or adjust the score.'
+            }, status=400)
+
         fixture.save()
+
+        from apps.fixtures.generator import advance_winner_after_result
+
+        if is_knockout:
+            advance_winner_after_result(fixture)
 
         # Delete old events for this fixture before saving new ones
         fixture.events.all().delete()
@@ -739,6 +960,14 @@ class MatchResultView(APIView):
         if fixture.stage == 'round_of_16':
             _auto_advance_bracket(fixture.tournament, from_stage='round_of_16', to_stage='quarter')
 
+        # When all round-of-32 are done → fill round-of-16 slots with winners
+        if fixture.stage == 'round_of_32':
+            _auto_advance_bracket(fixture.tournament, from_stage='round_of_32', to_stage='round_of_16')
+
+        # When all round-of-64 are done → fill round-of-32 slots with winners
+        if fixture.stage == 'round_of_64':
+            _auto_advance_bracket(fixture.tournament, from_stage='round_of_64', to_stage='round_of_32')
+
         # Check if tournament is now complete
         check_tournament_complete(fixture.tournament)
 
@@ -783,3 +1012,86 @@ class MatchEventListCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def bracket_view(request, tournament_id):
+    """
+    GET /api/fixtures/bracket/:tournament_id/
+    Returns the full knockout bracket structured by round for tree rendering.
+    """
+    from apps.tournaments.models import Tournament
+
+    try:
+        tournament = Tournament.objects.get(id=tournament_id)
+    except Tournament.DoesNotExist:
+        return Response({'error': 'Tournament not found'}, status=404)
+
+    if tournament.organiser != request.user and not tournament.public_stats:
+        return Response({'error': 'Access denied'}, status=403)
+
+    KNOCKOUT_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+    STAGE_DISPLAY_NAMES = {
+        'round_of_64': 'Round of 64',
+        'round_of_32': 'Round of 32',
+        'round_of_16': 'Round of 16',
+        'quarter': 'Quarter Final',
+        'semi': 'Semi Final',
+        'final': 'Final',
+    }
+
+    knockout_fixtures = tournament.fixtures.filter(
+        stage__in=KNOCKOUT_STAGE_ORDER
+    ).select_related('team_a', 'team_b').order_by('round_number', 'bracket_position')
+
+    if not knockout_fixtures.exists():
+        return Response({'rounds': [], 'champion': None})
+
+    # Group by stage, preserving only stages that actually exist
+    rounds = []
+    for stage_key in KNOCKOUT_STAGE_ORDER:
+        stage_fixtures = knockout_fixtures.filter(stage=stage_key).order_by('bracket_position')
+        if not stage_fixtures.exists():
+            continue
+
+        matches = []
+        for f in stage_fixtures:
+            matches.append({
+                'id': str(f.id),
+                'team_a': {'id': str(f.team_a.id), 'name': f.team_a.name} if f.team_a else None,
+                'team_b': {'id': str(f.team_b.id), 'name': f.team_b.name} if f.team_b else None,
+                'score_a': f.score_a,
+                'score_b': f.score_b,
+                'status': f.status,
+                'match_date': f.match_date,
+                'match_time': f.match_time,
+                'venue': f.venue,
+                'winner': str(f.winner.id) if f.winner else None,
+                'penalty_score_a': f.penalty_score_a,
+                'penalty_score_b': f.penalty_score_b,
+            })
+
+        rounds.append({
+            'stage': stage_key,
+            'name': STAGE_DISPLAY_NAMES.get(stage_key, stage_key.title()),
+            'matches': matches,
+        })
+
+    # Determine champion — winner of the final, if completed
+    champion = None
+    final_fixtures = knockout_fixtures.filter(stage='final')
+    if final_fixtures.exists():
+        final = final_fixtures.first()
+        if final.status == 'completed':
+            if final.winner:
+                champion = final.winner.name
+            elif final.score_a > final.score_b:
+                champion = final.team_a.name
+            elif final.score_b > final.score_a:
+                champion = final.team_b.name
+
+    return Response({
+        'rounds': rounds,
+        'champion': champion,
+    })

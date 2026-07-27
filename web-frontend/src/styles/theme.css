@@ -6,11 +6,11 @@
 
 :root {
   --bg: #ffffff;
-  --bg2: #f5f5f5;
-  --card: #ffffff;
+  --bg2: #faf9f6; /* milk white */
+  --card: #ffffff; /* clean white card */
   --txt: #1a1a1a;
-  --txt2: #666666;
-  --border: #e0e0e0;
+  --txt2: #626262;
+  --border: #e2e8f0; /* clean light border */
   --green: #1a6b2f;
   --green-bg: #d4edda;
 }
@@ -91,4 +91,15 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ── Pulse-glow for "Advance to Next Round" button ─────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 2px 8px rgba(124,58,237,0.30); }
+  50%       { box-shadow: 0 4px 20px rgba(124,58,237,0.60); }
+}
+
+.bracket-connector-h,
+.bracket-connector-v {
+  pointer-events: none;
 }

@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Users, Calendar, Trash2, Edit2, Play, CheckCircle, Rot
 import api from '../../api/axios';
 import MatchResultModal from '../../components/MatchResultModal';
 import StatusBadge from '../../components/StatusBadge';
+import { BracketView } from '../../components/BracketView';
 
 const ageLabels = {
   U7: 'Under 7', U8: 'Under 8', U9: 'Under 9', U10: 'Under 10', U11: 'Under 11',
@@ -317,6 +318,15 @@ const GoalContributionsTable = ({ contributions }) => {
 };
 
 
+const getStartingKnockoutStage = (numTeams) => {
+  if (numTeams <= 2) return 'final';
+  if (numTeams <= 4) return 'semi';
+  if (numTeams <= 8) return 'quarter';
+  if (numTeams <= 16) return 'round_of_16';
+  if (numTeams <= 32) return 'round_of_32';
+  return 'round_of_64';
+};
+
 export default function TournamentManage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -350,6 +360,7 @@ export default function TournamentManage() {
   const [knockoutSeedModal, setKnockoutSeedModal] = useState(false);
   const [seedOrder, setSeedOrder] = useState([]);
   const [manualMatches, setManualMatches] = useState([]);
+  const [advancingRound, setAdvancingRound] = useState(false);
 
   // Tournament Awards state
   const [tournamentAwards, setTournamentAwards] = useState([]);
@@ -467,16 +478,23 @@ export default function TournamentManage() {
 
   const handleSaveAward = async (awardType) => {
     const input = awardInputs[awardType] || {};
-    if (!input.player_name?.trim()) {
-      showToast('Please enter a player name.', 'error');
-      return;
+    if (awardType === 'best_team') {
+      if (!input.team_name?.trim()) {
+        showToast('Please select a team.', 'error');
+        return;
+      }
+    } else {
+      if (!input.player_name?.trim()) {
+        showToast('Please enter a player name.', 'error');
+        return;
+      }
     }
     setSavingAward(awardType);
     try {
       await api.post('/awards/tournament/', {
         tournament_id: id,
         award_type: awardType,
-        player_name: input.player_name.trim(),
+        player_name: awardType === 'best_team' ? '' : input.player_name.trim(),
         team_name: (input.team_name || '').trim(),
       });
       await fetchTournamentAwards();
@@ -871,6 +889,77 @@ export default function TournamentManage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  // ── MANUAL KNOCKOUT ROUND ADVANCEMENT ────────────────────────────────────────
+  // Compute whether the organiser can advance to the next knockout round.
+  // Conditions:
+  //   - Manual fixture mode
+  //   - Tournament has knockout rounds (pure knockout or league+knockout)
+  //   - All fixtures in the current/latest round are completed
+  //   - A next round has NOT been created yet
+  //   - The completed round has ≥ 2 fixtures (single-match = the final, no more rounds needed)
+  const canAdvanceRound = (() => {
+    if (!tournament) return false;
+    if (tournament.fixture_generation_mode !== 'manual') return false;
+    if (!['knockout', 'league_knockout'].includes(tournament.tournament_type)) return false;
+    if (fixtures.length === 0) return false;
+
+    const KO_STAGES = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
+
+    // For pure knockout, ALL fixtures are knockout fixtures
+    const koFixtures = tournament.tournament_type === 'knockout'
+      ? fixtures
+      : fixtures.filter(f => KO_STAGES.includes(f.stage));
+
+    if (koFixtures.length === 0) return false;
+
+    // Group by round_number
+    const byRound = {};
+    for (const f of koFixtures) {
+      const rn = f.round_number ?? 1;
+      if (!byRound[rn]) byRound[rn] = [];
+      byRound[rn].push(f);
+    }
+    const sortedRounds = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+
+    // Walk rounds; find the last fully-completed round
+    let lastCompletedNum = null;
+    let lastCompletedGroup = null;
+    for (const rn of sortedRounds) {
+      if (byRound[rn].every(f => f.status === 'completed')) {
+        lastCompletedNum = rn;
+        lastCompletedGroup = byRound[rn];
+      } else {
+        break; // stop at first incomplete round
+      }
+    }
+
+    if (!lastCompletedGroup) return false;
+
+    // If only 1 match in the last completed round → that was the final, no more rounds
+    if (lastCompletedGroup.length < 2) return false;
+
+    // Check next round doesn't already exist
+    const nextRoundNum = lastCompletedNum + 1;
+    if (byRound[nextRoundNum]) return false;
+
+    return true;
+  })();
+
+  const handleAdvanceRound = async () => {
+    setAdvancingRound(true);
+    try {
+      const res = await api.post(`/fixtures/advance-knockout/${id}/`);
+      showToast(res.data.message, 'success');
+      await fetchInitialData();
+      window.dispatchEvent(new Event('bracket:refresh'));
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to advance round.';
+      showToast(msg, 'error');
+    } finally {
+      setAdvancingRound(false);
+    }
+  };
+
   const handleGenerateFixtures = async () => {
     if (teams.length < 2) {
       showToast(`Add at least 2 teams before generating fixtures. (${teams.length} team(s) added)`, 'error');
@@ -1124,6 +1213,18 @@ export default function TournamentManage() {
       }
     }
 
+    const isKnockoutContext = 
+      tournament.tournament_type === 'knockout' || 
+      data.stage !== 'league';
+
+    let roundNumber = null;
+    if (isKnockoutContext) {
+      const isKO = (f) => tournament.tournament_type === 'knockout' || f.stage !== 'league';
+      const koFixtures = fixtures.filter(isKO);
+      const wins = koFixtures.filter(f => f.status === 'completed' && f.winner === data.team_a).length;
+      roundNumber = wins + 1;
+    }
+
     const payload = {
       tournament: id,
       team_a: data.team_a,
@@ -1132,6 +1233,7 @@ export default function TournamentManage() {
       match_time: data.match_time || null,
       stage: data.stage || autoStage,
       venue: data.venue || '',
+      ...(roundNumber ? { round_number: roundNumber } : {}),
     };
 
     try {
@@ -1191,16 +1293,25 @@ export default function TournamentManage() {
     }
   };
 
-  const handleSaveResult = (fixtureId, responseData) => {
-    // Update locally complete scores
+  const handleSaveResult = async (fixtureId, responseData) => {
+    // Update locally — include winner so the loser strikethrough renders immediately
     setFixtures(prev => prev.map(f => f.id === fixtureId ? {
       ...f,
       score_a: responseData.score_a,
       score_b: responseData.score_b,
+      penalty_score_a: responseData.penalty_score_a ?? null,
+      penalty_score_b: responseData.penalty_score_b ?? null,
+      winner: responseData.winner_id ?? null,
       status: responseData.status
     } : f));
     showToast('Match result saved.');
     fetchInitialData(); // reload table stats
+
+    // Refresh bracket view if it's currently showing knockout data
+    window.dispatchEvent(new Event('bracket:refresh'));
+
+    // Also refresh league status in case this was the last league match
+    await fetchLeagueStatus();
   };
 
   // Helper checks
@@ -1209,11 +1320,16 @@ export default function TournamentManage() {
   const isCompleted = tournament?.status === 'completed';
   const isMultiGroup = tournament?.tournament_type === 'league_knockout' && tournament?.league_knockout_style === 'multi_group';
 
+  const showKnockoutTab =
+    tournament?.tournament_type === 'knockout' ||
+    (tournament?.tournament_type === 'league_knockout' && leagueStatus?.knockout_exists);
+
   const tabs = [
     { key: 'overview',  label: 'Overview',  icon: '📋' },
     { key: 'teams',     label: 'Teams',     icon: '👥' },
     ...(isMultiGroup ? [{ key: 'groups', label: 'Groups', icon: '🗂️' }] : []),
     { key: 'fixtures',  label: 'Fixtures',  icon: '📅' },
+    ...(showKnockoutTab ? [{ key: 'knockout', label: 'Knockout', icon: '⚔️' }] : []),
     { key: 'matches',   label: 'Matches',   icon: '⚽' },
     { key: 'stats',     label: 'Stats',     icon: '📊' },
     { key: 'awards',    label: 'Awards',    icon: '🏆' },
@@ -1233,13 +1349,61 @@ export default function TournamentManage() {
   const completedFixtures = fixtures.filter(f => f.status === 'completed').length;
   const progressPct = totalFixtures > 0 ? (completedFixtures / totalFixtures) * 100 : 0;
 
+  // Calculate knockout variables for manual fixture modal if it is open
+  const isKnockoutContext = fixtureModal && (
+    tournament.tournament_type === 'knockout' || 
+    fixtureModal.data.stage !== 'league'
+  );
+
+  const isManualKnockout = tournament.fixture_generation_mode === 'manual' && tournament.tournament_type === 'knockout';
+
+  const isKO = (f) => tournament.tournament_type === 'knockout' || f.stage !== 'league';
+  const koFixtures = fixtures.filter(isKO);
+  const editingFixtureId = fixtureModal?.data?.id;
+
+  const eligibleTeams = teams.filter(t => {
+    if (!isKnockoutContext) return true;
+    // In manual mode, organiser picks stage freely — don't filter by wins/losses
+    if (isManualKnockout) return true;
+
+    // Auto-mode: Check if team has lost any completed KO match
+    const hasLost = koFixtures.some(f => 
+      f.status === 'completed' && 
+      (f.team_a === t.id || f.team_b === t.id) && 
+      f.winner !== t.id
+    );
+    if (hasLost) return false;
+
+    // Auto-mode: Check if team is busy in an incomplete KO match (excluding current fixture if editing)
+    const isBusy = koFixtures.some(f => 
+      f.id !== editingFixtureId && 
+      f.status !== 'completed' && 
+      (f.team_a === t.id || f.team_b === t.id)
+    );
+    if (isBusy) return false;
+
+    return true;
+  });
+
+  const getWins = (teamId) => koFixtures.filter(f => f.status === 'completed' && f.winner === teamId).length;
+
+  const KNOCKOUT_STAGE_OPTIONS = [
+    { value: 'round_of_64', label: 'Round of 64' },
+    { value: 'round_of_32', label: 'Round of 32' },
+    { value: 'round_of_16', label: 'Round of 16' },
+    { value: 'quarter',     label: 'Quarter Final' },
+    { value: 'semi',        label: 'Semi Final' },
+    { value: 'final',       label: 'Final' },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative text-[var(--txt)]">
       
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white
-          ${toast.type === 'success' ? 'bg-green-700' : 'bg-red-650'}`}
+        <div 
+          className="fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white"
+          style={{ backgroundColor: toast.type === 'success' ? '#15803d' : '#dc2626' }}
         >
           <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
           <span>{toast.message}</span>
@@ -1899,40 +2063,71 @@ export default function TournamentManage() {
           )}
 
           {/* Groups Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {groups.map(group => (
-              <div key={group.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between min-h-60">
-                <div>
-                  <div className="px-4 py-3 border-b border-[var(--border)] bg-zinc-50 dark:bg-zinc-900/60 font-bold text-sm text-green-700">
-                    Group {group.name}
-                  </div>
-                  <div className="p-4 space-y-2">
-                    {group.teams.length === 0 ? (
-                      <p className="text-xs text-[var(--txt2)] font-semibold italic py-4 text-center">No teams assigned yet.</p>
-                    ) : (
-                      group.teams.map((team, tIdx) => (
-                        <div key={team.id} className="flex items-center justify-between text-xs font-bold border-b border-zinc-100 dark:border-zinc-800 pb-1.5 last:border-b-0">
-                          <span>{tIdx + 1}. {team.name}</span>
-                          
-                          {/* Move Group selector */}
-                          {!isCompleted && (
-                            <select
-                              className="px-2 py-0.5 border border-[var(--border)] bg-[var(--bg)] rounded text-[10px] font-bold"
-                              value={group.name}
-                              onChange={e => handleAssignGroup(team.id, e.target.value)}
-                            >
-                              {groups.map(g => (
-                                <option key={g.name} value={g.name}>{g.name}</option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      ))
-                    )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {groups.map(group => {
+              const nameKey = (group.name || '').replace(/Group\s+/i, '').trim().toUpperCase();
+              const groupColors = {
+                A: {
+                  bg: 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20',
+                  border: 'border-l-4 border-emerald-500',
+                  text: 'text-emerald-800 dark:text-emerald-400',
+                },
+                B: {
+                  bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
+                  border: 'border-l-4 border-blue-500',
+                  text: 'text-blue-800 dark:text-blue-400',
+                },
+                C: {
+                  bg: 'bg-gradient-to-r from-purple-50 to-fuchsia-50 dark:from-purple-950/20 dark:to-fuchsia-950/20',
+                  border: 'border-l-4 border-purple-500',
+                  text: 'text-purple-800 dark:text-purple-400',
+                },
+                D: {
+                  bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20',
+                  border: 'border-l-4 border-amber-500',
+                  text: 'text-amber-800 dark:text-amber-400',
+                },
+              };
+              const style = groupColors[nameKey] || {
+                bg: 'bg-gradient-to-r from-zinc-50 to-neutral-50 dark:from-zinc-950/10 dark:to-neutral-950/10',
+                border: 'border-l-4 border-zinc-500',
+                text: 'text-zinc-800 dark:text-zinc-400',
+              };
+
+              return (
+                <div key={group.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className={`px-4 py-2.5 border-b border-[var(--border)] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 ${style.bg} ${style.border} ${style.text}`}>
+                      Group {group.name}
+                    </div>
+                    <div className="p-3 space-y-1.5">
+                      {group.teams.length === 0 ? (
+                        <p className="text-xs text-[var(--txt2)] font-semibold italic py-4 text-center">No teams assigned yet.</p>
+                      ) : (
+                        group.teams.map((team, tIdx) => (
+                          <div key={team.id} className="flex items-center justify-between text-xs font-bold bg-zinc-50/50 dark:bg-zinc-800/10 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 px-2.5 py-1.5 rounded-xl border border-[var(--border)] transition-colors">
+                            <span className="truncate pr-2">{tIdx + 1}. {team.name}</span>
+                            
+                            {/* Move Group selector */}
+                            {!isCompleted && (
+                              <select
+                                className="px-1.5 py-0.5 border border-[var(--border)] bg-[var(--card)] rounded text-[10px] font-extrabold outline-none focus:border-green-600 cursor-pointer shrink-0"
+                                value={group.name}
+                                onChange={e => handleAssignGroup(team.id, e.target.value)}
+                              >
+                                {groups.map(g => (
+                                  <option key={g.name} value={g.name}>{g.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
         </div>
@@ -1984,9 +2179,43 @@ export default function TournamentManage() {
                     )}
                   </button>
                 )}
+                {/* Advance to Next Round button — manual knockout only */}
+                {canAdvanceRound && (
+                  <button
+                    type="button"
+                    onClick={handleAdvanceRound}
+                    disabled={advancingRound}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: '#7c3aed',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: advancingRound ? 'not-allowed' : 'pointer',
+                      opacity: advancingRound ? 0.7 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 8px rgba(124,58,237,0.30)',
+                      animation: 'pulse-glow 2s ease-in-out infinite',
+                    }}
+                  >
+                    {advancingRound ? (
+                      <>
+                        <div style={{ width: '12px', height: '12px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        <span>Advancing...</span>
+                      </>
+                    ) : (
+                      <>⚡ Advance to Next Round →</>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: 'league' } })}
+                  onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league' } })}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '12px',
@@ -2074,7 +2303,7 @@ export default function TournamentManage() {
                 {tournament.fixture_generation_mode === 'manual' && (
                   <button
                     type="button"
-                    onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: 'league' } })}
+                    onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league' } })}
                     style={{
                       backgroundColor: '#15803d',
                       color: '#ffffff',
@@ -2104,70 +2333,124 @@ export default function TournamentManage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)] text-sm font-semibold text-[var(--txt)]">
-                    {fixtures.map(f => (
-                      <tr key={f.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
-                        
-                        {/* Round / Stage */}
-                        <td className="p-4 text-center">
-                          <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-xs font-bold">
-                            {f.stage === 'league' ? `Round ${f.round_number || 1}` : f.stage.toUpperCase()}
-                          </span>
-                        </td>
+                    {fixtures.map(f => {
+                      const isComp = f.status === 'completed';
+                      const knockoutStages = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final'];
+                      const isKnockout = tournament.tournament_type === 'knockout' || knockoutStages.includes(f.stage);
+                      const scoreA = Number(f.score_a);
+                      const scoreB = Number(f.score_b);
+                      const winnerUUID = f.winner
+                        ? String(f.winner)
+                        : scoreA > scoreB ? String(f.team_a)
+                        : scoreB > scoreA ? String(f.team_b)
+                        : null;
+                      const isTeamALoser = isComp && isKnockout && winnerUUID && String(f.team_a) !== winnerUUID;
+                      const isTeamBLoser = isComp && isKnockout && winnerUUID && String(f.team_b) !== winnerUUID;
 
-                        {/* Matchup */}
-                        <td className="p-4 font-bold text-sm">
-                          {f.team_a_name || 'TBD'} <span className="text-zinc-400 font-medium">vs</span> {f.team_b_name || 'TBD'}
-                        </td>
-
-                        {/* Date & Time */}
-                        <td className="p-4 text-xs font-semibold text-[var(--txt2)]">
-                          {f.match_date ? new Date(f.match_date).toLocaleDateString() : 'TBD'} {f.match_time ? `at ${f.match_time.slice(0, 5)}` : ''}
-                        </td>
-
-                        {/* Venue */}
-                        <td className="p-4 text-xs font-semibold text-[var(--txt2)]">
-                          {f.venue || 'TBD'}
-                        </td>
-
-                        {/* Status */}
-                        <td className="p-4 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border uppercase tracking-wider
-                            ${f.status === 'completed' 
-                              ? 'bg-blue-50 text-blue-700 border-blue-200' 
-                              : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}
-                          >
-                            {f.status}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        {!isCompleted && (
+                      return (
+                        <tr key={f.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                          
+                          {/* Round / Stage */}
                           <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => setFixtureModal({ mode: 'edit', data: { ...f } })}
-                                className="p-1 hover:text-green-700 transition-colors"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteFixture(f.id)}
-                                className="p-1 hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                            <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-xs font-bold">
+                              {f.stage === 'league' ? `Round ${f.round_number || 1}` : f.stage.replace(/_/g, ' ').toUpperCase()}
+                            </span>
                           </td>
-                        )}
 
-                      </tr>
-                    ))}
+                          {/* Matchup */}
+                          <td className="p-4 font-bold text-sm">
+                            <span className={isTeamALoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : ''}>
+                              {f.team_a_name || 'TBD'}
+                            </span>
+                            <span className="text-zinc-400 font-medium px-1.5">vs</span>
+                            <span className={isTeamBLoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : ''}>
+                              {f.team_b_name || 'TBD'}
+                            </span>
+                          </td>
+
+                          {/* Date & Time */}
+                          <td className="p-4 text-xs font-semibold text-[var(--txt2)]">
+                            {f.match_date ? new Date(f.match_date).toLocaleDateString() : 'TBD'} {f.match_time ? `at ${f.match_time.slice(0, 5)}` : ''}
+                          </td>
+
+                          {/* Venue */}
+                          <td className="p-4 text-xs font-semibold text-[var(--txt2)]">
+                            {f.venue || 'TBD'}
+                          </td>
+
+                          {/* Status */}
+                          <td className="p-4 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border uppercase tracking-wider
+                              ${f.status === 'completed' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}
+                            >
+                              {f.status}
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          {!isCompleted && (
+                            <td className="p-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => setFixtureModal({ mode: 'edit', data: { ...f } })}
+                                  className="p-1 hover:text-green-700 transition-colors"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteFixture(f.id)}
+                                  className="p-1 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
 
+        </div>
+      )}
+
+      {activeTab === 'knockout' && (
+        <div>
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827' }}>
+              Knockout Bracket
+            </h3>
+            <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+              Click any match with two teams assigned to enter its result.
+              Winners automatically advance to the next round.
+            </p>
+          </div>
+
+          <BracketView
+            tournamentId={tournament.id}
+            editable={tournament.status === 'active'}
+            onEditMatch={(match) => {
+              // Reuse the existing match result modal from the Matches tab
+              const fullFixture = fixtures.find(f => f.id === match.id) || {
+                id: match.id,
+                team_a_id: match.team_a?.id,
+                team_a_name: match.team_a?.name,
+                team_b_id: match.team_b?.id,
+                team_b_name: match.team_b?.name,
+                score_a: match.score_a,
+                score_b: match.score_b,
+                stage: 'knockout',
+              };
+              setResultModal(fullFixture);
+            }}
+          />
         </div>
       )}
 
@@ -2186,33 +2469,55 @@ export default function TournamentManage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {fixtures.map(f => {
                 const isComp = f.status === 'completed';
+                // A match is "knockout" if the tournament is knockout-only, OR the stage is one of the known knockout stages
+                const knockoutStages = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final'];
+                const isKnockout = tournament.tournament_type === 'knockout' || knockoutStages.includes(f.stage);
+
+                // Resolve winner UUID: prefer explicit winner field, fall back to score comparison
+                const scoreA = Number(f.score_a);
+                const scoreB = Number(f.score_b);
+                const winnerUUID = f.winner
+                  ? String(f.winner)
+                  : scoreA > scoreB
+                  ? String(f.team_a)
+                  : scoreB > scoreA
+                  ? String(f.team_b)
+                  : null;
+
+                const isTeamALoser = isComp && isKnockout && winnerUUID && String(f.team_a) !== winnerUUID;
+                const isTeamBLoser = isComp && isKnockout && winnerUUID && String(f.team_b) !== winnerUUID;
+
                 return (
                   <div key={f.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden flex flex-col justify-between">
                     <div>
                       {/* Top labels */}
                       <div className="flex justify-between items-center text-xs font-bold text-[var(--txt2)] border-b border-[var(--border)] pb-2 mb-3">
-                        <span>{f.stage === 'league' ? `League · Round ${f.round_number}` : f.stage.toUpperCase()}</span>
+                        <span>{f.stage === 'league' ? `League · Round ${f.round_number}` : f.stage.replace(/_/g, ' ').toUpperCase()}</span>
                         <span>{f.match_date ? `${new Date(f.match_date).toLocaleDateString()} ${f.match_time ? f.match_time.slice(0, 5) : ''}` : 'TBD'}</span>
                       </div>
                       
                       {/* Match Score Display */}
                       <div className="flex items-center justify-between py-2">
                         <div className="flex-1 flex flex-col items-start gap-1">
-                          <span className="font-extrabold text-sm text-[var(--txt)] truncate w-full">{f.team_a_name || 'TBD'}</span>
+                          <span className={`font-extrabold text-sm truncate w-full ${isTeamALoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : 'text-[var(--txt)]'}`}>
+                            {f.team_a_name || 'TBD'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 px-4 font-black text-lg">
                           {isComp ? (
                             <>
-                              <span className="bg-zinc-100 dark:bg-zinc-800 text-[var(--txt)] w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)]">{f.score_a}</span>
+                              <span className="bg-zinc-100 dark:bg-zinc-800 w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)] text-[var(--txt)]">{f.score_a}</span>
                               <span className="text-zinc-400">&ndash;</span>
-                              <span className="bg-zinc-100 dark:bg-zinc-800 text-[var(--txt)] w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)]">{f.score_b}</span>
+                              <span className="bg-zinc-100 dark:bg-zinc-800 w-9 h-9 rounded-lg flex items-center justify-center border border-[var(--border)] text-[var(--txt)]">{f.score_b}</span>
                             </>
                           ) : (
                             <span className="text-zinc-350 dark:text-zinc-700 italic text-xs font-bold font-sans">VS</span>
                           )}
                         </div>
                         <div className="flex-1 flex flex-col items-end gap-1">
-                          <span className="font-extrabold text-sm text-[var(--txt)] truncate w-full text-right">{f.team_b_name || 'TBD'}</span>
+                          <span className={`font-extrabold text-sm truncate w-full text-right ${isTeamBLoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : 'text-[var(--txt)]'}`}>
+                            {f.team_b_name || 'TBD'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2250,7 +2555,7 @@ export default function TournamentManage() {
                               onClick={() => setFixtureModal({ mode: 'edit', data: { ...f } })}
                               className="flex items-center justify-center p-1.5 rounded-lg
                                          bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700
-                                         text-zinc-650 hover:text-zinc-800 dark:text-zinc-350 dark:hover:text-white
+                                         text-zinc-600 hover:text-zinc-800 dark:text-zinc-350 dark:hover:text-white
                                          border border-[var(--border)] transition-all"
                               title="Edit Match Details"
                             >
@@ -2265,7 +2570,7 @@ export default function TournamentManage() {
                               }}
                               className="flex items-center justify-center p-1.5 rounded-lg
                                          bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/30
-                                         text-red-650 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
+                                         text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300
                                          border border-red-200 hover:border-red-350 dark:border-red-900/50 transition-all"
                               title="Delete Match"
                             >
@@ -2338,8 +2643,8 @@ export default function TournamentManage() {
                             <div style={{ fontSize: '13px', fontWeight: '900', color: 'var(--txt)' }}>{label}</div>
                             {existing ? (
                               <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700' }}>
-                                ✅ {existing.player_display_name || existing.player_name}
-                                {existing.team_name ? ` · ${existing.team_name}` : ''}
+                                ✅ {key === 'best_team' ? existing.team_name : (existing.player_display_name || existing.player_name)}
+                                {key !== 'best_team' && existing.team_name ? ` · ${existing.team_name}` : ''}
                               </div>
                             ) : (
                               <div style={{ fontSize: '11px', color: 'var(--txt2)', fontWeight: '600' }}>No winner assigned yet</div>
@@ -2367,42 +2672,71 @@ export default function TournamentManage() {
 
                       {/* Input form */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <input
-                          type="text"
-                          placeholder="Player name *"
-                          value={input.player_name}
-                          onChange={e => setAwardInputs(prev => ({ ...prev, [key]: { ...prev[key], player_name: e.target.value } }))}
-                          style={{
-                            flex: '2',
-                            minWidth: '150px',
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            border: '1.5px solid var(--border)',
-                            backgroundColor: 'var(--bg)',
-                            color: 'var(--txt)',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            outline: 'none',
-                          }}
-                        />
-                        <input
-                          type="text"
-                          placeholder="Team name (optional)"
-                          value={input.team_name}
-                          onChange={e => setAwardInputs(prev => ({ ...prev, [key]: { ...prev[key], team_name: e.target.value } }))}
-                          style={{
-                            flex: '2',
-                            minWidth: '130px',
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            border: '1.5px solid var(--border)',
-                            backgroundColor: 'var(--bg)',
-                            color: 'var(--txt)',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            outline: 'none',
-                          }}
-                        />
+                        {key === 'best_team' ? (
+                          <select
+                            value={input.team_name}
+                            onChange={e => setAwardInputs(prev => ({ ...prev, [key]: { ...prev[key], team_name: e.target.value } }))}
+                            style={{
+                              flex: '2',
+                              minWidth: '150px',
+                              padding: '8px 12px',
+                              borderRadius: '10px',
+                              border: '1.5px solid var(--border)',
+                              backgroundColor: 'var(--bg)',
+                              color: 'var(--txt)',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="">Select Team *</option>
+                            {teams.map(t => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              placeholder="Player name *"
+                              value={input.player_name}
+                              onChange={e => setAwardInputs(prev => ({ ...prev, [key]: { ...prev[key], player_name: e.target.value } }))}
+                              style={{
+                                flex: '2',
+                                minWidth: '150px',
+                                padding: '8px 12px',
+                                borderRadius: '10px',
+                                border: '1.5px solid var(--border)',
+                                backgroundColor: 'var(--bg)',
+                                color: 'var(--txt)',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                outline: 'none',
+                              }}
+                            />
+                            <select
+                              value={input.team_name}
+                              onChange={e => setAwardInputs(prev => ({ ...prev, [key]: { ...prev[key], team_name: e.target.value } }))}
+                              style={{
+                                flex: '2',
+                                minWidth: '130px',
+                                padding: '8px 12px',
+                                borderRadius: '10px',
+                                border: '1.5px solid var(--border)',
+                                backgroundColor: 'var(--bg)',
+                                color: 'var(--txt)',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                outline: 'none',
+                              }}
+                            >
+                              <option value="">Team name (optional)</option>
+                              {teams.map(t => (
+                                <option key={t.id} value={t.name}>{t.name}</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
                         <button
                           onClick={() => handleSaveAward(key)}
                           disabled={isSaving}
@@ -2466,7 +2800,7 @@ export default function TournamentManage() {
               <h2 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Activate Tournament?</h2>
               <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm space-y-2 mb-6">
                 <p className="font-bold text-zinc-800 dark:text-zinc-200">Once activated:</p>
-                <ul className="list-disc pl-5 text-zinc-650 dark:text-zinc-400 font-semibold space-y-1">
+                <ul className="list-disc pl-5 text-zinc-600 dark:text-zinc-400 font-semibold space-y-1">
                   <li>Matches will begin</li>
                   <li>Team list will be locked</li>
                   <li>New teams cannot be added</li>
@@ -2528,7 +2862,7 @@ export default function TournamentManage() {
           <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
             <div className="p-6">
               <h2 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Mark as Completed?</h2>
-              <p className="text-sm font-semibold text-zinc-650 dark:text-zinc-350">
+              <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-350">
                 This will finalize all league tables, scorers and declare the winners. No more scores can be entered.
               </p>
             </div>
@@ -2584,7 +2918,7 @@ export default function TournamentManage() {
           <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
             <div className="p-6">
               <h2 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Reopen Tournament?</h2>
-              <p className="text-sm font-semibold text-zinc-650 dark:text-zinc-350">
+              <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-350">
                 This sets the tournament back to active. You will be able to edit match scores.
               </p>
             </div>
@@ -2637,132 +2971,174 @@ export default function TournamentManage() {
       {/* Fixture Add / Edit Modal */}
       {fixtureModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
-            <div className="px-6 py-5 border-b border-[var(--border)] font-extrabold text-lg text-[var(--txt)]">
-              {fixtureModal.mode === 'add' ? 'Create New Fixture' : 'Edit Fixture Details'}
-            </div>
-            <form onSubmit={handleSaveFixture}>
-              <div className="p-6 space-y-4">
-                
-                {/* Team Selectors */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--txt2)] mb-1">Team A</label>
-                    <select
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
-                      value={fixtureModal.data.team_a || ''}
-                      onChange={e => {
-                        const newTeamA = e.target.value;
-                        setFixtureModal({
-                          ...fixtureModal,
-                          data: {
-                            ...fixtureModal.data,
-                            team_a: newTeamA,
-                            team_b: fixtureModal.data.team_b === newTeamA ? '' : fixtureModal.data.team_b,
+            <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
+              <div className="px-6 py-5 border-b border-[var(--border)] font-extrabold text-lg text-[var(--txt)]">
+                {fixtureModal.mode === 'add' ? 'Create New Fixture' : 'Edit Fixture Details'}
+              </div>
+              <form onSubmit={handleSaveFixture}>
+                <div className="p-6 space-y-4">
+
+                  {/* Stage Selector — only for knockout tournaments in manual mode */}
+                  {isManualKnockout && (
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
+                        Round / Stage
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {KNOCKOUT_STAGE_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, stage: opt.value } })}
+                            style={{
+                              padding: '8px 4px',
+                              borderRadius: '10px',
+                              border: fixtureModal.data.stage === opt.value
+                                ? '2px solid #7c3aed'
+                                : '1.5px solid #e5e7eb',
+                              backgroundColor: fixtureModal.data.stage === opt.value
+                                ? '#f5f3ff'
+                                : '#ffffff',
+                              color: fixtureModal.data.stage === opt.value
+                                ? '#7c3aed'
+                                : '#374151',
+                              fontSize: '11px',
+                              fontWeight: fixtureModal.data.stage === opt.value ? '800' : '600',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Team Selectors */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--txt2)] mb-1">Team A</label>
+                      <select
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
+                        value={fixtureModal.data.team_a || ''}
+                        onChange={e => {
+                          const newTeamA = e.target.value;
+                          setFixtureModal({
+                            ...fixtureModal,
+                            data: {
+                              ...fixtureModal.data,
+                              team_a: newTeamA,
+                              team_b: fixtureModal.data.team_b === newTeamA ? '' : fixtureModal.data.team_b,
+                            }
+                          });
+                        }}
+                      >
+                        <option value="">Select Team</option>
+                        {eligibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
+                        Team B {fixtureModal.data.team_a && groups?.length > 0 && '(Same Group)'}
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
+                        value={fixtureModal.data.team_b || ''}
+                        onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, team_b: e.target.value } })}
+                      >
+                        <option value="">Select Team</option>
+                        {(() => {
+                          const selectedTeamAId = fixtureModal.data.team_a;
+                          let availableTeamsForB = eligibleTeams.filter(t => t.id !== selectedTeamAId);
+
+                          // Auto-mode only: restrict Team B to same-round teams
+                          if (!isManualKnockout && isKnockoutContext && selectedTeamAId) {
+                            const selectedTeamAWins = getWins(selectedTeamAId);
+                            availableTeamsForB = availableTeamsForB.filter(t => getWins(t.id) === selectedTeamAWins);
                           }
-                        });
-                      }}
-                    >
-                      <option value="">Select Team</option>
-                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
-                      Team B {fixtureModal.data.team_a && groups?.length > 0 && '(Same Group)'}
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
-                      value={fixtureModal.data.team_b || ''}
-                      onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, team_b: e.target.value } })}
-                    >
-                      <option value="">Select Team</option>
-                      {(() => {
-                        const selectedTeamAId = fixtureModal.data.team_a;
-                        let availableTeamsForB = teams.filter(t => t.id !== selectedTeamAId);
 
-                        if (selectedTeamAId && groups && groups.length > 0) {
-                          const teamAGroup = groups.find(g =>
-                            (g.teams || []).some(t => (typeof t === 'object' ? t.id === selectedTeamAId : t === selectedTeamAId))
-                          );
-                          if (teamAGroup) {
-                            const groupTeamIds = (teamAGroup.teams || []).map(t => (typeof t === 'object' ? t.id : t));
-                            availableTeamsForB = teams.filter(t => t.id !== selectedTeamAId && groupTeamIds.includes(t.id));
+                          if (selectedTeamAId && groups && groups.length > 0) {
+                            const teamAGroup = groups.find(g =>
+                              (g.teams || []).some(t => (typeof t === 'object' ? t.id === selectedTeamAId : t === selectedTeamAId))
+                            );
+                            if (teamAGroup) {
+                              const groupTeamIds = (teamAGroup.teams || []).map(t => (typeof t === 'object' ? t.id : t));
+                              availableTeamsForB = availableTeamsForB.filter(t => groupTeamIds.includes(t.id));
+                            }
                           }
-                        }
 
-                        return availableTeamsForB.map(t => <option key={t.id} value={t.id}>{t.name}</option>);
-                      })()}
-                    </select>
+                          return availableTeamsForB.map(t => <option key={t.id} value={t.id}>{t.name}</option>);
+                        })()}
+                      </select>
+                    </div>
                   </div>
-                </div>
 
-                {/* Duplicate Match Warning */}
-                {(() => {
-                  const teamA = fixtureModal.data.team_a;
-                  const teamB = fixtureModal.data.team_b;
-                  if (!teamA || !teamB) return null;
+                  {/* Duplicate Match Warning */}
+                  {(() => {
+                    const teamA = fixtureModal.data.team_a;
+                    const teamB = fixtureModal.data.team_b;
+                    if (!teamA || !teamB) return null;
 
-                  const isHomeAndAway = tournament.home_and_away;
-                  const existingPairMatches = fixtures.filter(f => {
-                    if (fixtureModal.mode === 'edit' && f.id === fixtureModal.data.id) return false;
-                    return (f.team_a === teamA && f.team_b === teamB) ||
-                           (f.team_a === teamB && f.team_b === teamA);
-                  });
+                    const isHomeAndAway = tournament.home_and_away;
+                    const existingPairMatches = fixtures.filter(f => {
+                      if (fixtureModal.mode === 'edit' && f.id === fixtureModal.data.id) return false;
+                      return (f.team_a === teamA && f.team_b === teamB) ||
+                             (f.team_a === teamB && f.team_b === teamA);
+                    });
 
-                  let warningMsg = null;
-                  if (!isHomeAndAway) {
-                    if (existingPairMatches.length >= 1) {
-                      warningMsg = "(This match already have)";
-                    }
-                  } else {
-                    if (existingPairMatches.length >= 2) {
-                      warningMsg = "(This match already have - Maximum 2 Home & Away matches reached)";
+                    let warningMsg = null;
+                    if (!isHomeAndAway) {
+                      if (existingPairMatches.length >= 1) {
+                        warningMsg = "(This match already have)";
+                      }
                     } else {
-                      const exactHomeMatch = existingPairMatches.find(f => f.team_a === teamA && f.team_b === teamB);
-                      if (exactHomeMatch) {
-                        warningMsg = "(This match already have - Home match already exists)";
+                      if (existingPairMatches.length >= 2) {
+                        warningMsg = "(This match already have - Maximum 2 Home & Away matches reached)";
+                      } else {
+                        const exactHomeMatch = existingPairMatches.find(f => f.team_a === teamA && f.team_b === teamB);
+                        if (exactHomeMatch) {
+                          warningMsg = "(This match already have - Home match already exists)";
+                        }
                       }
                     }
-                  }
 
-                  if (!warningMsg) return null;
-                  return (
-                    <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '750', marginTop: '4px', textAlign: 'center' }}>
-                      ⚠️ {warningMsg}
+                    if (!warningMsg) return null;
+                    return (
+                      <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '750', marginTop: '4px', textAlign: 'center' }}>
+                        ⚠️ {warningMsg}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Optional Date & Time */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
+                        Match Date <span className="text-[10px] font-normal text-zinc-400">(Optional)</span>
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold"
+                        value={fixtureModal.data.match_date || ''}
+                        onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, match_date: e.target.value } })}
+                      />
                     </div>
-                  );
-                })()}
+                    <div>
+                      <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
+                        Match Time <span className="text-[10px] font-normal text-zinc-400">(Optional)</span>
+                      </label>
+                      <input
+                        type="time"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold"
+                        value={fixtureModal.data.match_time || ''}
+                        onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, match_time: e.target.value } })}
+                      />
+                    </div>
+                  </div>
 
-                {/* Optional Date & Time */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
-                      Match Date <span className="text-[10px] font-normal text-zinc-400">(Optional)</span>
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold"
-                      value={fixtureModal.data.match_date || ''}
-                      onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, match_date: e.target.value } })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[var(--txt2)] mb-1">
-                      Match Time <span className="text-[10px] font-normal text-zinc-400">(Optional)</span>
-                    </label>
-                    <input
-                      type="time"
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold"
-                      value={fixtureModal.data.match_time || ''}
-                      onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, match_time: e.target.value } })}
-                    />
-                  </div>
                 </div>
-
-              </div>
-
-              {/* Modal Footer */}
               <div style={{
                 backgroundColor: '#f9fafb',
                 padding: '16px 24px',
@@ -2821,7 +3197,7 @@ export default function TournamentManage() {
           <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
             <div className="p-6">
               <h2 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 mb-2">Seeding / Seeding warning</h2>
-              <p className="text-sm font-semibold text-zinc-650 dark:text-zinc-350">
+              <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-350">
                 ⚠️ This will replace all existing scheduled fixtures and randomly draw the brackets. Any saved match results will be cleared. Continue?
               </p>
             </div>

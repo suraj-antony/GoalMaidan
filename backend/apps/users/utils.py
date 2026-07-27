@@ -11,9 +11,9 @@ def send_otp_email(user):
     user.otp_created_at = timezone.now()
     user.save()
     send_mail(
-        subject='TourneyFC — Your verification code',
+        subject='GoalMaidan — Your verification code',
         message=f'Your OTP is: {otp}\n\nThis code expires in 10 minutes.',
-        from_email='noreply@tourneyfc.app',
+        from_email='noreply@goalmaidan.app',
         recipient_list=[user.email],
     )
 

@@ -4,6 +4,12 @@ import WhatsAppShareButton from './WhatsAppShareButton';
 export default function MatchCard({ match, tournamentName, tournamentId }) {
   const { t } = useTranslation();
 
+  const scoreA = Number(match.score_a);
+  const scoreB = Number(match.score_b);
+  // Determine loser regardless of stage (knockout or league)
+  const isTeamALoser = (scoreB > scoreA) || (scoreA === scoreB && match.winner && String(match.winner) === String(match.team_b));
+  const isTeamBLoser = (scoreA > scoreB) || (scoreA === scoreB && match.winner && String(match.winner) === String(match.team_a));
+
   return (
     <div className="bg-[var(--card)] rounded-lg shadow-sm border border-[var(--border)] p-4 mb-4">
       <div className="flex justify-between items-center mb-4">
@@ -19,7 +25,9 @@ export default function MatchCard({ match, tournamentName, tournamentId }) {
 
       <div className="flex items-center justify-between mt-2">
         <div className="flex-1 text-center">
-          <p className="font-bold text-lg truncate px-2">{match.team_a_name}</p>
+          <p className={`font-bold text-lg truncate px-2 ${isTeamALoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : ''}`}>
+            {match.team_a_name}
+          </p>
         </div>
         
         <div className="px-4 flex items-center justify-center gap-3">
@@ -33,7 +41,9 @@ export default function MatchCard({ match, tournamentName, tournamentId }) {
         </div>
 
         <div className="flex-1 text-center">
-          <p className="font-bold text-lg truncate px-2">{match.team_b_name}</p>
+          <p className={`font-bold text-lg truncate px-2 ${isTeamBLoser ? 'line-through text-zinc-550 dark:text-zinc-400 font-semibold opacity-90' : ''}`}>
+            {match.team_b_name}
+          </p>
         </div>
       </div>
 

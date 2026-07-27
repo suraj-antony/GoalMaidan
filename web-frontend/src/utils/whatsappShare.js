@@ -11,7 +11,7 @@ export const shareMatchResult = (match, tournamentName, tournamentId) => {
     `⚽ Goals: ${goals || 'N/A'}\n` +
     `🏅 Man of Match: ${match.motm || 'TBD'}\n\n` +
     `📲 Full stats: ${window.location.origin}/tournament/${tournamentId}\n\n` +
-    `_Powered by TourneyFC ⚽_`;
+    `_Powered by GoalMaidan ⚽_`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -24,7 +24,7 @@ export const shareFixture = (fixture, tournamentName, tournamentId) => {
     `🕔 ${fixture.match_date} at ${fixture.match_time}\n` +
     `📍 ${fixture.venue || 'TBD'}\n\n` +
     `📲 Follow live: ${window.location.origin}/tournament/${tournamentId}\n\n` +
-    `_Powered by TourneyFC ⚽_`;
+    `_Powered by GoalMaidan ⚽_`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };

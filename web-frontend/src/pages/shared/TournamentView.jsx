@@ -218,9 +218,15 @@ export default function TournamentView() {
                      award.award_type === 'emerging_player' ? '🌱' : '🏆'}
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--txt2)]">{award.award_type?.replace('_', ' ')}</p>
-                    <p className="font-bold text-lg mt-0.5">{award.player_name}</p>
-                    <p className="text-sm text-[var(--txt2)]">{award.team_name}</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[var(--txt2)]">{award.award_type?.replace(/_/g, ' ')}</p>
+                    {award.award_type === 'best_team' ? (
+                      <p className="font-bold text-lg mt-0.5">{award.team_name}</p>
+                    ) : (
+                      <>
+                        <p className="font-bold text-lg mt-0.5">{award.player_name || award.player_display_name}</p>
+                        {award.team_name && <p className="text-sm text-[var(--txt2)]">{award.team_name}</p>}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

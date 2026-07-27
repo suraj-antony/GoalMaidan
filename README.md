@@ -1,4 +1,4 @@
-# ⚽ TourneyFC — Football Tournament Manager
+# ⚽ GoalMaidan — Football Tournament Manager
 
 A full-stack football tournament management app for local area tournaments.
 Supports 3s, 5s, 6s, 7s, and 11s formats with full league, knockout, and league+knockout systems.
@@ -32,7 +32,7 @@ Supports 3s, 5s, 6s, 7s, and 11s formats with full league, knockout, and league+
 ## Project Structure
 
 ```
-tourneyfc/
+goalmaidan/
 ├── backend/          ← Django API
 ├── web-frontend/     ← React web app
 └── mobile-app/       ← React Native Expo app

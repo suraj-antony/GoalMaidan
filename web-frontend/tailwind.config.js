@@ -42,6 +42,16 @@ export default {
     'bg-green-800',
     'hover:bg-green-800',
     'active:bg-green-900',
+    // Bracket: winner row
+    'bg-green-50',
+    'text-green-700',
+    'font-extrabold',
+    // Bracket: loser row
+    'bg-gray-50',
+    'line-through',
+    'opacity-75',
+    'opacity-65',
+    'text-gray-400',
   ],
   theme: {
     extend: {

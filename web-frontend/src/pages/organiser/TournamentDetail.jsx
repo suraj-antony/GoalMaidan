@@ -366,8 +366,8 @@ export default function TournamentDetail() {
                         <td className="p-3 font-extrabold text-[var(--txt)]">{row.team_name || row.team?.name || 'Team'}</td>
                         <td className="p-3 text-center font-medium">{row.played}</td>
                         <td className="p-3 text-center text-green-700 font-semibold">{row.won}</td>
-                        <td className="p-3 text-center text-zinc-650 font-semibold">{row.drawn}</td>
-                        <td className="p-3 text-center text-red-650 font-semibold">{row.lost}</td>
+                        <td className="p-3 text-center text-zinc-600 font-semibold">{row.drawn}</td>
+                        <td className="p-3 text-center text-red-600 font-semibold">{row.lost}</td>
                         <td className="p-3 text-center font-medium">{(row.goals_for - row.goals_against)}</td>
                         <td className="p-3 text-center font-extrabold text-[var(--txt)]">{row.points}</td>
                       </tr>
@@ -475,15 +475,18 @@ export default function TournamentDetail() {
                   <p className="text-xs text-[var(--txt2)] italic">No match awards given yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {stats.match_awards.map(ma => (
-                      <div key={ma.id} className="p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] text-xs flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-[var(--txt)]">{ma.award_name}</p>
-                          <p className="text-[var(--txt2)]">Player: {ma.player_name || ma.player?.name}</p>
+                    {stats.match_awards.map(ma => {
+                      const label = ma.award_type ? ma.award_type.toUpperCase().replace(/_/g, ' ') : 'MATCH AWARD';
+                      return (
+                        <div key={ma.id} className="p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] text-xs flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-[var(--txt)]">{label}</p>
+                            <p className="text-[var(--txt2)]">Player: {ma.player_name || ma.player_display_name || ma.player?.name}</p>
+                          </div>
+                          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded font-extrabold">Match Award</span>
                         </div>
-                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded font-extrabold">Match Award</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -497,15 +500,25 @@ export default function TournamentDetail() {
                   <p className="text-xs text-[var(--txt2)] italic">No tournament-wide awards declared yet</p>
                 ) : (
                   <div className="space-y-2">
-                    {stats.tournament_awards.map(ta => (
-                      <div key={ta.id} className="p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] text-xs flex justify-between items-center">
-                        <div>
-                          <p className="font-bold text-[var(--txt)]">{ta.award_name}</p>
-                          <p className="text-[var(--txt2)]">Player: {ta.player_name || ta.player?.name}</p>
+                    {stats.tournament_awards.map(ta => {
+                      const label = ta.award_type ? ta.award_type.toUpperCase().replace(/_/g, ' ') : 'MAJOR AWARD';
+                      return (
+                        <div key={ta.id} className="p-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] text-xs flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-[var(--txt)]">{label}</p>
+                            {ta.award_type === 'best_team' ? (
+                              <p className="text-[var(--txt2)]">Team: {ta.team_name}</p>
+                            ) : (
+                              <>
+                                <p className="text-[var(--txt2)]">Player: {ta.player_name || ta.player_display_name || ta.player?.name}</p>
+                                {ta.team_name && <p className="text-xs text-[var(--txt2)]">Team: {ta.team_name}</p>}
+                              </>
+                            )}
+                          </div>
+                          <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-extrabold">🏆 Major Award</span>
                         </div>
-                        <span className="bg-amber-105 text-amber-700 px-2 py-0.5 rounded font-extrabold">🏆 Major Award</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

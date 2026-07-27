@@ -10,6 +10,8 @@ class Fixture(models.Model):
         ('group_a', 'Group A'), ('group_b', 'Group B'), ('group_c', 'Group C'),
         ('group_d', 'Group D'), ('group_e', 'Group E'), ('group_f', 'Group F'),
         ('group_g', 'Group G'), ('group_h', 'Group H'),
+        ('round_of_64', 'Round of 64'),
+        ('round_of_32', 'Round of 32'),
         ('round_of_16', 'Round of 16'),
         ('quarter', 'Quarter Final'),
         ('semi', 'Semi Final'),
@@ -37,6 +39,16 @@ class Fixture(models.Model):
     winner = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='won_fixtures')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     round_number = models.IntegerField(null=True, blank=True)
+    next_fixture = models.ForeignKey(
+        'self', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='feeds_from'
+    )
+    next_fixture_slot = models.CharField(
+        max_length=1,
+        choices=[('a', 'Team A slot'), ('b', 'Team B slot')],
+        null=True, blank=True
+    )
+    bracket_position = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

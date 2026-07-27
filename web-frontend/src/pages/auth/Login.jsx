@@ -48,7 +48,7 @@ export default function Login() {
           <span className="text-3xl">⚽</span>
         </div>
         <h2 className="text-2xl font-bold text-primary-600">Welcome Back</h2>
-        <p className="text-[var(--txt2)] text-sm mt-1">Sign in to TourneyFC</p>
+        <p className="text-[var(--txt2)] text-sm mt-1">Sign in to GoalMaidan</p>
       </div>
       
       {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">{error}</div>}

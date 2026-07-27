@@ -139,8 +139,9 @@ export default function OrganiserDashboard() {
       
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white
-          ${toast.type === 'success' ? 'bg-green-700' : 'bg-red-650'}`}
+        <div 
+          className="fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white"
+          style={{ backgroundColor: toast.type === 'success' ? '#15803d' : '#dc2626' }}
         >
           <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
           <span>{toast.message}</span>
@@ -351,7 +352,7 @@ export default function OrganiserDashboard() {
               </h2>
               <div className="bg-zinc-50 dark:bg-zinc-800/40 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm space-y-2 mb-6">
                 <p className="font-bold text-zinc-800 dark:text-zinc-200">Once activated:</p>
-                <ul className="list-disc pl-5 text-zinc-650 dark:text-zinc-400 font-semibold space-y-1">
+                <ul className="list-disc pl-5 text-zinc-600 dark:text-zinc-400 font-semibold space-y-1">
                   <li>Matches will begin</li>
                   <li>Team list will be locked</li>
                   <li>New teams cannot be added</li>
@@ -437,7 +438,7 @@ export default function OrganiserDashboard() {
             </h2>
 
             {/* Warning message */}
-            <p className="text-sm text-gray-650 text-center mb-2">
+            <p className="text-sm text-gray-600 text-center mb-2">
               You are about to permanently delete:
             </p>
             <p className="text-base font-semibold text-gray-900 text-center mb-4">

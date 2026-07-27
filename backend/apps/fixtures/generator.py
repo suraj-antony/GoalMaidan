@@ -1,5 +1,5 @@
 """
-Fixture generator functions for TourneyFC.
+Fixture generator functions for GoalMaidan.
 Each function returns a list of unsaved Fixture instances ready for bulk_create().
 """
 import math
@@ -90,58 +90,157 @@ def _stage_label(num_remaining):
         return 'group'  # early rounds in large brackets
 
 
-def generate_knockout_fixtures(tournament, teams, shuffle=True):
+STAGE_NAMES_BY_SIZE = {
+    2: ['final'],
+    4: ['semi', 'final'],
+    8: ['quarter', 'semi', 'final'],
+    16: ['round_of_16', 'quarter', 'semi', 'final'],
+    32: ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final'],
+}
+
+
+def get_stage_sequence(num_teams):
     """
-    Single-elimination bracket.
-    Creates only the first round with real teams; subsequent rounds have
-    placeholder (None) teams to be filled by the organiser as the bracket
-    progresses.
+    Returns the ordered list of stage names for the full bracket,
+    based on the (rounded up to next power of 2) number of teams.
     """
+    size = 2
+    while size < num_teams:
+        size *= 2
+    return STAGE_NAMES_BY_SIZE.get(size, ['final'])
+
+
+def generate_full_bracket(tournament, teams):
+    """
+    Creates the ENTIRE bracket upfront — round 1 with real teams,
+    and all future rounds as empty placeholder fixtures (team_a/team_b = None),
+    all linked together via next_fixture + next_fixture_slot so that
+    winners automatically advance when results are saved.
+
+    Handles byes automatically if team count is not a power of 2
+    (top seeds get a bye — team advances to round 2 automatically).
+    """
+    from apps.fixtures.models import Fixture
+    import random
+
     team_list = list(teams)
-    if len(team_list) < 2:
+    random.shuffle(team_list)
+    n = len(team_list)
+
+    if n < 2:
         return []
 
-    if shuffle:
-        random.shuffle(team_list)
+    stages = get_stage_sequence(n)
+    bracket_size = 2 ** len(stages)  # e.g. 8 for quarter/semi/final
 
-    # Pad to next power of 2
-    next_pow2 = 1
-    while next_pow2 < len(team_list):
-        next_pow2 *= 2
+    # Pad with byes (None) up to bracket_size
+    while len(team_list) < bracket_size:
+        team_list.append(None)
 
-    byes = next_pow2 - len(team_list)
-    # Insert BYEs at the end (teams with a BYE advance automatically)
-    team_list += [None] * byes
+    fixtures_by_round = []  # list of lists — fixtures_by_round[0] = round 1 fixtures
 
-    fixtures = []
-    stage = _stage_label(next_pow2)
+    # ── Round 1 — real matchups (with byes handled) ──
+    round1_fixtures = []
+    i = 0
+    pos = 0
+    while i < len(team_list):
+        team_a = team_list[i]
+        team_b = team_list[i + 1] if i + 1 < len(team_list) else None
 
-    for i in range(0, next_pow2, 2):
-        fixtures.append(Fixture(
+        fixture = Fixture(
             tournament=tournament,
-            stage=stage,
-            team_a=team_list[i],
-            team_b=team_list[i + 1],
+            stage=stages[0],
             round_number=1,
-        ))
+            team_a=team_a,
+            team_b=team_b,
+            status='scheduled',
+            bracket_position=pos,
+        )
+        round1_fixtures.append(fixture)
+        i += 2
+        pos += 1
 
-    # Add placeholder fixtures for subsequent rounds
-    remaining = next_pow2 // 2
-    rnd = 2
-    while remaining >= 2:
-        stage = _stage_label(remaining)
-        for _ in range(remaining // 2):
-            fixtures.append(Fixture(
+    fixtures_by_round.append(round1_fixtures)
+
+    # ── Future rounds — empty placeholders ──
+    prev_round_count = len(round1_fixtures)
+    for round_idx in range(1, len(stages)):
+        this_round_count = math.ceil(prev_round_count / 2)
+        this_round_fixtures = []
+        for pos in range(this_round_count):
+            fixture = Fixture(
                 tournament=tournament,
-                stage=stage,
+                stage=stages[round_idx],
+                round_number=round_idx + 1,
                 team_a=None,
                 team_b=None,
-                round_number=rnd,
-            ))
-        remaining //= 2
-        rnd += 1
+                status='scheduled',
+                bracket_position=pos,
+            )
+            this_round_fixtures.append(fixture)
+        fixtures_by_round.append(this_round_fixtures)
+        prev_round_count = this_round_count
 
-    return fixtures
+    # ── Save all fixtures first (need IDs before we can link them) ──
+    all_fixtures = [f for round_fixtures in fixtures_by_round for f in round_fixtures]
+    Fixture.objects.bulk_create(all_fixtures)
+
+    # ── Now link each fixture to its next_fixture + slot ──
+    for round_idx in range(len(fixtures_by_round) - 1):
+        current_round = fixtures_by_round[round_idx]
+        next_round = fixtures_by_round[round_idx + 1]
+
+        for i, fixture in enumerate(current_round):
+            next_fixture = next_round[i // 2]
+            slot = 'a' if i % 2 == 0 else 'b'
+            fixture.next_fixture = next_fixture
+            fixture.next_fixture_slot = slot
+
+        Fixture.objects.bulk_update(current_round, ['next_fixture', 'next_fixture_slot'])
+
+    # ── Handle byes — if one side of round 1 match is None, auto-advance the other ──
+    for fixture in fixtures_by_round[0]:
+        if fixture.team_a and not fixture.team_b:
+            _advance_winner(fixture, fixture.team_a)
+        elif fixture.team_b and not fixture.team_a:
+            _advance_winner(fixture, fixture.team_b)
+
+    return []  # Already saved directly via bulk_create above
+
+
+def _advance_winner(fixture, winning_team):
+    """
+    Pushes the winning team into the next round's fixture slot.
+    Used both for byes (round 1) and for normal match completion.
+    """
+    if not fixture.next_fixture:
+        return  # This was the final — no next round
+
+    next_fixture = fixture.next_fixture
+    if fixture.next_fixture_slot == 'a':
+        next_fixture.team_a = winning_team
+    else:
+        next_fixture.team_b = winning_team
+    next_fixture.save(update_fields=['team_a', 'team_b'])
+
+
+def advance_winner_after_result(fixture):
+    """
+    PUBLIC function — call this after a knockout match result is saved.
+    Determines the winner and advances them into the next round.
+    """
+    if fixture.score_a == fixture.score_b:
+        if fixture.winner:
+            _advance_winner(fixture, fixture.winner)
+        return
+
+    winner = fixture.team_a if fixture.score_a > fixture.score_b else fixture.team_b
+    _advance_winner(fixture, winner)
+
+
+def generate_knockout_fixtures(tournament, teams):
+    """Wrapper — kept for backward compatibility with existing calls."""
+    return generate_full_bracket(tournament, teams)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Plus, AlertTriangle } from 'lucide-react';
 import api from '../api/axios';
 
-const KNOCKOUT_STAGES = ['quarter', 'semi', 'third_place', 'final', 'round_of_16'];
+const KNOCKOUT_STAGES = ['round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final'];
 
 export default function MatchResultModal({ fixture, tournament, onClose, onSave }) {
   const [scoreA, setScoreA] = useState(fixture.score_a ?? 0);
@@ -88,7 +88,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
   const playersA = teamA.players || [];
   const playersB = teamB.players || [];
 
-  const isKnockout = KNOCKOUT_STAGES.includes(fixture.stage);
+  const isKnockout = tournament?.tournament_type === 'knockout' || KNOCKOUT_STAGES.includes(fixture.stage);
   const isDraw = scoreA === scoreB;
   const isKnockoutDraw = isKnockout && isDraw;
 
@@ -100,7 +100,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
   const needsManualWinner = isKnockoutDraw && penaltyIsDraw;
 
   const handleSave = async () => {
-    // Validate: knockout draw must have penalties entered
+    // Validate: knockout draw must have penalties entered (legacy check fallback)
     if (isKnockoutDraw && (!penaltyEntered || isNaN(penANum) || isNaN(penBNum))) {
       alert('This is a knockout match that ended in a draw. Please enter the penalty shootout scores.');
       return;
@@ -157,7 +157,8 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
       onClose();
     } catch (err) {
       console.error('Save error:', err);
-      alert('Failed to save match result. Please check input data.');
+      const errMsg = err.response?.data?.error || 'Failed to save match result. Please check input data.';
+      alert(errMsg);
     } finally {
       setSaving(false);
     }
@@ -280,6 +281,21 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
           {/* Scores input */}
           <div className="space-y-3">
             <h3 className="text-xs font-extrabold text-[var(--txt2)] uppercase tracking-wider">Scoreboard</h3>
+            {isKnockout && (
+              <div style={{
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fcd34d',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                color: '#92400e',
+                marginBottom: '14px',
+              }}>
+                ⚠️ This is a knockout match — it cannot end in a draw.
+                If the match ends in a draw, enter the regular match scores (e.g. 0-0 or 1-1).
+                The penalty shootout section will then automatically appear below for you to enter the shootout scores and select a winner.
+              </div>
+            )}
             <div className="flex items-center justify-center gap-8 py-4 bg-zinc-50 dark:bg-zinc-800/20 rounded-2xl border border-[var(--border)]">
               
               {/* Team A */}

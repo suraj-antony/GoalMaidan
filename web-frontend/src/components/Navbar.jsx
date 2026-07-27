@@ -12,7 +12,7 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 right-0 h-16 bg-[var(--card)] border-b border-[var(--border)] z-50 flex items-center justify-between px-4 sm:px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <Link to={user?.role === 'organiser' ? '/dashboard' : '/viewer'} className="text-xl font-bold text-primary-500">
-          ⚽ TourneyFC
+          ⚽ GoalMaidan
         </Link>
       </div>
       
