@@ -41,6 +41,29 @@ export default function TournamentDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const getTournamentWinner = () => {
+    if (tournament?.status !== 'completed') return null;
+
+    if (tournament.tournament_type === 'league') {
+      if (stats?.league_table && stats.league_table.length > 0) {
+        return stats.league_table[0].team_name || stats.league_table[0].team?.name;
+      }
+    } else {
+      const finalFixture = fixtures.find(f => f.stage === 'final' && f.status === 'completed');
+      if (finalFixture) {
+        if (finalFixture.winner_name) return finalFixture.winner_name;
+        const scoreA = Number(finalFixture.score_a);
+        const scoreB = Number(finalFixture.score_b);
+        if (scoreA > scoreB) {
+          return finalFixture.team_a_name;
+        } else if (scoreB > scoreA) {
+          return finalFixture.team_b_name;
+        }
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
     const fetchTournamentData = async () => {
       try {
@@ -210,6 +233,33 @@ export default function TournamentDetail() {
         {/* ================= TAB 1: OVERVIEW ================= */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {getTournamentWinner() && (
+              <div style={{
+                background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+                border: '2px solid #eab308',
+                borderRadius: '16px',
+                padding: '24px',
+                textAlign: 'center',
+                boxShadow: '0 4px 20px rgba(234,179,8,0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}>
+                <span style={{ fontSize: '48px', lineHeight: '1' }}>🏆</span>
+                <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Tournament Champion
+                </h2>
+                <p style={{ fontSize: '28px', fontWeight: '950', color: '#1e293b', marginTop: '4px' }}>
+                  {getTournamentWinner()}
+                </p>
+                <p style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', opacity: 0.85 }}>
+                  Congratulations to the winners of {tournament.name}! 🎉
+                </p>
+              </div>
+            )}
+
             <h2 className="text-xl font-extrabold text-[var(--txt)] mb-4">Overview & Info</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -221,7 +271,8 @@ export default function TournamentDetail() {
                   ['Format', typeLabels[tournament.tournament_type] || tournament.tournament_type],
                   ['Max Teams Allowed', `${tournament.max_teams} teams`],
                   ['Home & Away Phase', tournament.home_and_away ? 'Enabled' : 'Disabled'],
-                  ['Knockout Qualifiers', tournament.tournament_type === 'league_knockout' ? `${tournament.knockout_qualifiers} teams` : 'N/A']
+                  ['Knockout Qualifiers', tournament.tournament_type === 'league_knockout' ? `${tournament.knockout_qualifiers} teams` : 'N/A'],
+                  ['Third Place Playoff', (tournament.tournament_type === 'knockout' || tournament.tournament_type === 'league_knockout') ? (tournament.third_place_option ? 'Enabled' : 'Disabled') : 'N/A']
                 ].map(([lbl, val]) => (
                   <div key={lbl} className="flex justify-between py-2 border-b border-[var(--border)]">
                     <span className="text-sm font-semibold text-[var(--txt2)]">{lbl}</span>
@@ -360,18 +411,38 @@ export default function TournamentDetail() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {stats.league_table.map((row, index) => (
-                      <tr key={row.id || index} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
-                        <td className="p-3 font-extrabold text-zinc-500">{index + 1}</td>
-                        <td className="p-3 font-extrabold text-[var(--txt)]">{row.team_name || row.team?.name || 'Team'}</td>
-                        <td className="p-3 text-center font-medium">{row.played}</td>
-                        <td className="p-3 text-center text-green-700 font-semibold">{row.won}</td>
-                        <td className="p-3 text-center text-zinc-600 font-semibold">{row.drawn}</td>
-                        <td className="p-3 text-center text-red-600 font-semibold">{row.lost}</td>
-                        <td className="p-3 text-center font-medium">{(row.goals_for - row.goals_against)}</td>
-                        <td className="p-3 text-center font-extrabold text-[var(--txt)]">{row.points}</td>
-                      </tr>
-                    ))}
+                    {stats.league_table.map((row, index) => {
+                      const isFirst = index === 0;
+                      return (
+                        <tr 
+                          key={row.id || index} 
+                          className={isFirst 
+                            ? "bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-50/40 dark:hover:bg-amber-950/20" 
+                            : "hover:bg-zinc-50 dark:hover:bg-zinc-900/40"}
+                        >
+                          <td 
+                            className={`p-3 font-extrabold ${isFirst ? 'text-amber-600' : 'text-zinc-500'}`}
+                            style={{ borderLeft: isFirst ? '4px solid #eab308' : '4px solid transparent' }}
+                          >
+                            {isFirst ? '🥇' : index + 1}
+                          </td>
+                          <td className="p-3 font-extrabold text-[var(--txt)]">
+                            {row.team_name || row.team?.name || 'Team'}
+                            {tournament.status === 'completed' && tournament.tournament_type === 'league' && isFirst && (
+                              <span className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-black bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                🏆 Winner
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-medium">{row.played}</td>
+                          <td className="p-3 text-center text-green-700 font-semibold">{row.won}</td>
+                          <td className="p-3 text-center text-zinc-600 font-semibold">{row.drawn}</td>
+                          <td className="p-3 text-center text-red-600 font-semibold">{row.lost}</td>
+                          <td className="p-3 text-center font-medium">{(row.goals_for - row.goals_against)}</td>
+                          <td className="p-3 text-center font-extrabold text-[var(--txt)]">{row.points}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

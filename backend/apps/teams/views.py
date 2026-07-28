@@ -24,12 +24,43 @@ class TeamListCreateView(APIView):
         if request.user.role != 'organiser':
             return Response({"error": "Only organisers can create teams"}, status=status.HTTP_403_FORBIDDEN)
             
+        # Support bulk list of teams
+        if isinstance(request.data, list):
+            created = []
+            for item in request.data:
+                tournament_id = item.get('tournament')
+                tournament = get_object_or_404(Tournament, id=tournament_id)
+                if request.user != tournament.organiser:
+                    return Response({"error": "You don't own this tournament"}, status=status.HTTP_403_FORBIDDEN)
+                
+                name = item.get('name', '').strip()
+                if not name:
+                    return Response({"error": "Team name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+                if Team.objects.filter(tournament=tournament, name__iexact=name).exists():
+                    return Response({"error": f"Team '{name}' already exists in this tournament."}, status=status.HTTP_400_BAD_REQUEST)
+                if any(c['name'].strip().lower() == name.lower() for c in created):
+                    return Response({"error": f"Duplicate team name '{name}' in the upload list."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                serializer = TeamSerializer(data=item)
+                if serializer.is_valid():
+                    serializer.save()
+                    created.append(serializer.data)
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(created, status=status.HTTP_201_CREATED)
+
         tournament_id = request.data.get('tournament')
         tournament = get_object_or_404(Tournament, id=tournament_id)
         
         if request.user != tournament.organiser:
             return Response({"error": "You don't own this tournament"}, status=status.HTTP_403_FORBIDDEN)
             
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({"error": "Team name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        if Team.objects.filter(tournament=tournament, name__iexact=name).exists():
+            return Response({"error": f"Team '{name}' already exists in this tournament."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = TeamSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -46,6 +77,12 @@ class TeamDetailView(APIView):
         if team.tournament.status != 'draft':
             return Response({"error": "Cannot edit teams after tournament is activated."}, status=status.HTTP_400_BAD_REQUEST)
             
+        name = request.data.get('name')
+        if name:
+            name = name.strip()
+            if Team.objects.filter(tournament=team.tournament, name__iexact=name).exclude(pk=pk).exists():
+                return Response({"error": f"Team '{name}' already exists in this tournament."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = TeamSerializer(team, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

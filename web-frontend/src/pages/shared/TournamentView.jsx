@@ -30,6 +30,29 @@ export default function TournamentView() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState('table');
 
+  const getTournamentWinner = () => {
+    if (tournament?.status !== 'completed') return null;
+
+    if (tournament.tournament_type === 'league') {
+      if (table && table.length > 0) {
+        return table[0].team_name;
+      }
+    } else {
+      const finalFixture = fixtures.find(f => f.stage === 'final' && f.status === 'completed');
+      if (finalFixture) {
+        if (finalFixture.winner_name) return finalFixture.winner_name;
+        const scoreA = Number(finalFixture.score_a);
+        const scoreB = Number(finalFixture.score_b);
+        if (scoreA > scoreB) {
+          return finalFixture.team_a_name;
+        } else if (scoreB > scoreA) {
+          return finalFixture.team_b_name;
+        }
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -117,6 +140,34 @@ export default function TournamentView() {
         </div>
       </div>
 
+      {getTournamentWinner() && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+          border: '2px solid #eab308',
+          borderRadius: '16px',
+          padding: '24px',
+          textAlign: 'center',
+          boxShadow: '0 4px 20px rgba(234,179,8,0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          marginBottom: '24px',
+        }}>
+          <span style={{ fontSize: '48px', lineHeight: '1' }}>🏆</span>
+          <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Tournament Champion
+          </h2>
+          <p style={{ fontSize: '28px', fontWeight: '950', color: '#1e293b', marginTop: '4px' }}>
+            {getTournamentWinner()}
+          </p>
+          <p style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', opacity: 0.85 }}>
+            Congratulations to the winners of {tournament.name}! 🎉
+          </p>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 bg-[var(--bg2)] p-1 rounded-xl mb-6 overflow-x-auto">
         {TABS.map(tab => (
@@ -138,7 +189,7 @@ export default function TournamentView() {
           {tournament.tournament_type === 'league' ? (
             <>
               <h2 className="text-xl font-bold mb-4">{t('league_table')}</h2>
-              <LeagueTable tableData={table} />
+              <LeagueTable tableData={table} isLeagueCompleted={tournament.status === 'completed' && tournament.tournament_type === 'league'} />
             </>
           ) : (
             <>

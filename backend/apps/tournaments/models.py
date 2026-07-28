@@ -48,6 +48,8 @@ class Tournament(models.Model):
     home_and_away = models.BooleanField(default=False)  # League: play twice
     knockout_qualifiers = models.IntegerField(default=4)  # How many qualify from league to KO
     max_teams = models.IntegerField(default=8)
+    third_place_option = models.BooleanField(default=False)
+
 
     # Age verification
     age_verification_required = models.BooleanField(default=False)

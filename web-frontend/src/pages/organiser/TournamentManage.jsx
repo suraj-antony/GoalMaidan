@@ -21,7 +21,7 @@ const typeLabels = {
 
 
 // Renders a mini standings table for a single group or all teams
-const GroupStandingsTable = ({ title, rows, qualifiers }) => {
+const GroupStandingsTable = ({ title, rows, qualifiers, isLeagueCompleted }) => {
   if (!rows || rows.length === 0) return null;
   return (
     <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
@@ -53,19 +53,38 @@ const GroupStandingsTable = ({ title, rows, qualifiers }) => {
             {rows.map((row, i) => {
               const gd = row.goal_difference ?? (row.goals_for - row.goals_against);
               const isQualifier = qualifiers > 0 && i < qualifiers;
+              const isFirst = i === 0;
               const teamKey = row.team || row.team_id || i;
+              
+              const rowClass = isFirst 
+                ? 'bg-amber-50/40 hover:bg-amber-50/60'
+                : isQualifier 
+                ? 'bg-green-50/30 hover:bg-green-50/50' 
+                : i % 2 === 0 
+                ? 'bg-white' 
+                : 'bg-gray-50/50';
+
+              const borderLeftStyle = isFirst
+                ? '4px solid #eab308'
+                : isQualifier
+                ? '4px solid var(--green)'
+                : '4px solid transparent';
+
               return (
-                <tr key={teamKey}
-                  className={isQualifier ? 'bg-green-50/30' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                >
+                <tr key={teamKey} className={rowClass}>
                   <td 
-                    className="px-3 py-2.5 text-center font-bold text-gray-400"
-                    style={{ borderLeft: isQualifier ? '4px solid var(--green)' : '4px solid transparent' }}
+                    className={`px-3 py-2.5 text-center font-bold ${isFirst ? 'text-amber-600 text-sm' : 'text-gray-400'}`}
+                    style={{ borderLeft: borderLeftStyle }}
                   >
-                    {i + 1}
+                    {isFirst ? '🥇' : i + 1}
                   </td>
                   <td className="px-3 py-2.5 font-semibold text-gray-900">
                     {row.team_name}
+                    {isLeagueCompleted && isFirst && (
+                      <span className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-black bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        🏆 Winner
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-center text-gray-700">{row.played}</td>
                   <td className="px-3 py-2.5 text-center text-green-700 font-medium">{row.won}</td>
@@ -97,7 +116,12 @@ const StandingsSection = ({ table, groups, tournament }) => {
       ? (tournament?.knockout_qualifiers || 4)
       : 0;
     return (
-      <GroupStandingsTable title="Standings Table" rows={table} qualifiers={qualifiers} />
+      <GroupStandingsTable 
+        title="Standings Table" 
+        rows={table} 
+        qualifiers={qualifiers} 
+        isLeagueCompleted={tournament?.status === 'completed' && tournament?.tournament_type === 'league'} 
+      />
     );
   }
 
@@ -160,7 +184,7 @@ const TopScorersTable = ({ scorers }) => {
   const hasMore = (scorers || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between h-full">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
       <div>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-900">⚽ Top Scorers</h3>
@@ -212,7 +236,7 @@ const TopAssistsTable = ({ assists }) => {
   const hasMore = (assists || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between h-full">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
       <div>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gray-900">🅰️ Top Assists</h3>
@@ -264,7 +288,7 @@ const GoalContributionsTable = ({ contributions }) => {
   const hasMore = (contributions || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between h-full">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
       <div>
         <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -361,6 +385,11 @@ export default function TournamentManage() {
   const [seedOrder, setSeedOrder] = useState([]);
   const [manualMatches, setManualMatches] = useState([]);
   const [advancingRound, setAdvancingRound] = useState(false);
+
+  // Bulk fixture generation state
+  const [showBulkFixtureModal, setShowBulkFixtureModal] = useState(false);
+  const [bulkFixtureStage, setBulkFixtureStage] = useState('league');
+  const [bulkMatchups, setBulkMatchups] = useState([{ id: 1, team_a: '', team_b: '' }]);
 
   // Tournament Awards state
   const [tournamentAwards, setTournamentAwards] = useState([]);
@@ -1050,11 +1079,19 @@ export default function TournamentManage() {
 
   const handleAddTeam = async (e) => {
     e.preventDefault();
-    if (!newTeam.name.trim()) return;
+    const teamName = newTeam.name.trim();
+    if (!teamName) return;
+
+    // Check duplicate case-insensitively
+    if (teams.some(t => t.name.toLowerCase() === teamName.toLowerCase())) {
+      showToast(`Team "${teamName}" already exists in this tournament.`, 'error');
+      return;
+    }
+
     try {
       const res = await api.post('/teams/', {
         tournament: id,
-        name: newTeam.name,
+        name: teamName,
         manager_name: newTeam.manager_name || 'TBD',
         manager_phone: newTeam.manager_phone || '0000000000'
       });
@@ -1062,13 +1099,30 @@ export default function TournamentManage() {
       setNewTeam({ name: '', manager_name: '', manager_phone: '' });
       showToast('Team added successfully!');
     } catch (err) {
-      showToast('Failed to add team.', 'error');
+      showToast(err.response?.data?.error || 'Failed to add team.', 'error');
     }
   };
 
   const handleBulkAddTeams = async () => {
     const lines = bulkTeamsText.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) return;
+
+    // Local duplicate checks
+    const lowerExistingNames = teams.map(t => t.name.toLowerCase());
+    const seen = new Set();
+    for (const name of lines) {
+      const lower = name.toLowerCase();
+      if (lowerExistingNames.includes(lower)) {
+        showToast(`Team "${name}" already exists in this tournament.`, 'error');
+        return;
+      }
+      if (seen.has(lower)) {
+        showToast(`Duplicate team name "${name}" found in the bulk list.`, 'error');
+        return;
+      }
+      seen.add(lower);
+    }
+
     try {
       const payload = lines.map(name => ({
         tournament: id,
@@ -1076,21 +1130,13 @@ export default function TournamentManage() {
         manager_name: 'TBD',
         manager_phone: '0000000000'
       }));
-      const res = await api.post('/teams/manual/', payload); // Wait, manual bulk create endpoint
-      // fallback in case batch creates aren't fully exposed - request lists are POST /teams/
-      // Let's call them sequentially or batch if available
-      // Let's do it safely
-      const added = [];
-      for (const item of payload) {
-        const single = await api.post('/teams/', item);
-        added.push(single.data);
-      }
+      const res = await api.post('/teams/', payload);
+      const added = Array.isArray(res.data) ? res.data : [res.data];
       setTeams([...teams, ...added]);
       setBulkTeamsText('');
-      setShowBulkInput(false);
       showToast(`${added.length} teams added successfully!`);
     } catch (err) {
-      showToast('Error adding some teams bulk.', 'error');
+      showToast(err.response?.data?.error || 'Error adding teams in bulk.', 'error');
     }
   };
 
@@ -1100,6 +1146,15 @@ export default function TournamentManage() {
   };
 
   const handleSaveInlineEdit = async (teamId) => {
+    const editName = editingTeamData.name?.trim();
+    if (!editName) return;
+
+    // Check duplicate excluding self
+    if (teams.some(t => t.id !== teamId && t.name.toLowerCase() === editName.toLowerCase())) {
+      showToast(`Team "${editName}" already exists in this tournament.`, 'error');
+      return;
+    }
+
     try {
       const res = await api.put(`/teams/${teamId}/`, editingTeamData);
       setTeams(teams.map(t => t.id === teamId ? res.data : t));
@@ -1363,7 +1418,103 @@ export default function TournamentManage() {
 
   const eligibleTeams = teams.filter(t => {
     if (!isKnockoutContext) return true;
-    // In manual mode, organiser picks stage freely — don't filter by wins/losses
+
+    // Rule 1: Prevent scheduling a team twice in the same stage (only when creating a new fixture, not when editing)
+    if (fixtureModal && fixtureModal.data && fixtureModal.data.stage && !editingFixtureId) {
+      const selectedStage = fixtureModal.data.stage;
+      const isKOStage = selectedStage && !['league', 'group'].includes(selectedStage) && !selectedStage.startsWith('group_');
+      if (isKOStage) {
+        const alreadyScheduledInStage = fixtures.some(f => 
+          f.id !== editingFixtureId && 
+          f.stage === selectedStage && 
+          (f.team_a === t.id || f.team_b === t.id)
+        );
+        if (alreadyScheduledInStage) return false;
+      }
+    }
+
+    // Rule 2: Previous stage qualification check (applies to both manual and auto)
+    if (fixtureModal && fixtureModal.data && fixtureModal.data.stage) {
+      const selectedStage = fixtureModal.data.stage;
+      const KO_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
+      
+      let stageIndex = KO_STAGE_ORDER.indexOf(selectedStage);
+      if (selectedStage === 'third_place') {
+        stageIndex = KO_STAGE_ORDER.indexOf('final'); // treat third place at same level as final
+      }
+
+      if (stageIndex > 0) {
+        // Find if there is a previous stage in the tournament that actually has matches
+        let prevStageWithMatches = null;
+        for (let idx = stageIndex - 1; idx >= 0; idx--) {
+          const checkStage = KO_STAGE_ORDER[idx];
+          const hasMatches = fixtures.some(f => f.stage === checkStage);
+          if (hasMatches) {
+            prevStageWithMatches = checkStage;
+            break;
+          }
+        }
+
+        if (prevStageWithMatches) {
+          // Check if all matches in the previous stage are completed
+          const prevMatches = fixtures.filter(f => f.stage === prevStageWithMatches);
+          const allCompleted = prevMatches.every(f => f.status === 'completed');
+          if (!allCompleted) {
+            // Previous stage is not finished yet, so no teams are eligible!
+            return false;
+          }
+          
+          if (selectedStage === 'third_place') {
+            // For third place match, only the semi-final LOSERS are eligible
+            const losersOfPrevStage = prevMatches.map(f => {
+              if (f.winner) {
+                return f.winner === f.team_a ? f.team_b : f.team_a;
+              }
+              return null;
+            }).filter(Boolean);
+
+            if (!losersOfPrevStage.includes(t.id)) {
+              return false;
+            }
+          } else {
+            // For other knockout rounds, only the winners are eligible
+            const winnersOfPrevStage = prevMatches.map(f => {
+              if (f.winner) return f.winner;
+              if (Number(f.score_a) > Number(f.score_b)) return f.team_a;
+              if (Number(f.score_b) > Number(f.score_a)) return f.team_b;
+              return null;
+            }).filter(Boolean);
+
+            if (!winnersOfPrevStage.includes(t.id)) {
+              return false;
+            }
+          }
+        } else {
+          // If no previous knockout stage has matches, and the tournament is league_knockout
+          if (tournament.tournament_type === 'league_knockout') {
+            const LEAGUE_STAGES = ['league', 'group_a', 'group_b', 'group_c', 'group_d',
+                                   'group_e', 'group_f', 'group_g', 'group_h'];
+            const leagueMatches = fixtures.filter(f => 
+              LEAGUE_STAGES.includes(f.stage) || f.stage.startsWith('group_')
+            );
+            if (leagueMatches.length > 0) {
+              const allLeagueCompleted = leagueMatches.every(f => f.status === 'completed');
+              if (!allLeagueCompleted) {
+                return false;
+              }
+              if (leagueStatus && leagueStatus.qualified_teams) {
+                const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
+                if (!isQualifiedFromLeague) {
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // In manual mode, organiser picks stage freely — don't filter by wins/losses of other rounds
     if (isManualKnockout) return true;
 
     // Auto-mode: Check if team has lost any completed KO match
@@ -1387,14 +1538,207 @@ export default function TournamentManage() {
 
   const getWins = (teamId) => koFixtures.filter(f => f.status === 'completed' && f.winner === teamId).length;
 
+  const getTournamentWinner = () => {
+    if (tournament?.status !== 'completed') return null;
+
+    if (tournament.tournament_type === 'league') {
+      if (table && table.length > 0) {
+        return table[0].team_name;
+      }
+    } else {
+      const finalFixture = fixtures.find(f => f.stage === 'final' && f.status === 'completed');
+      if (finalFixture) {
+        if (finalFixture.winner) {
+          const wTeam = teams.find(t => t.id === finalFixture.winner);
+          if (wTeam) return wTeam.name;
+        }
+        const scoreA = Number(finalFixture.score_a);
+        const scoreB = Number(finalFixture.score_b);
+        if (scoreA > scoreB) {
+          const wTeam = teams.find(t => t.id === finalFixture.team_a);
+          return wTeam ? wTeam.name : finalFixture.team_a_name;
+        } else if (scoreB > scoreA) {
+          const wTeam = teams.find(t => t.id === finalFixture.team_b);
+          return wTeam ? wTeam.name : finalFixture.team_b_name;
+        }
+      }
+    }
+    return null;
+  };
+
+  const getEligibleTeamsForStage = (targetStage) => {
+    return teams.filter(t => {
+      const selectedStage = targetStage;
+      const isKOStage = selectedStage && !['league', 'group'].includes(selectedStage) && !selectedStage.startsWith('group_');
+      if (isKOStage) {
+        const alreadyScheduledInStage = fixtures.some(f => 
+          f.stage === selectedStage && 
+          (f.team_a === t.id || f.team_b === t.id)
+        );
+        if (alreadyScheduledInStage) return false;
+      }
+
+      const KO_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
+      let stageIndex = KO_STAGE_ORDER.indexOf(selectedStage);
+      if (selectedStage === 'third_place') {
+        stageIndex = KO_STAGE_ORDER.indexOf('final');
+      }
+
+      if (stageIndex > 0) {
+        let prevStageWithMatches = null;
+        for (let idx = stageIndex - 1; idx >= 0; idx--) {
+          const checkStage = KO_STAGE_ORDER[idx];
+          const hasMatches = fixtures.some(f => f.stage === checkStage);
+          if (hasMatches) {
+            prevStageWithMatches = checkStage;
+            break;
+          }
+        }
+
+        if (prevStageWithMatches) {
+          const prevMatches = fixtures.filter(f => f.stage === prevStageWithMatches);
+          const allCompleted = prevMatches.every(f => f.status === 'completed');
+          if (!allCompleted) {
+            return false;
+          }
+          
+          if (selectedStage === 'third_place') {
+            const losersOfPrevStage = prevMatches.map(f => {
+              if (f.winner) {
+                return f.winner === f.team_a ? f.team_b : f.team_a;
+              }
+              return null;
+            }).filter(Boolean);
+
+            if (!losersOfPrevStage.includes(t.id)) {
+              return false;
+            }
+          } else {
+            const winnersOfPrevStage = prevMatches.map(f => {
+              if (f.winner) return f.winner;
+              if (Number(f.score_a) > Number(f.score_b)) return f.team_a;
+              if (Number(f.score_b) > Number(f.score_a)) return f.team_b;
+              return null;
+            }).filter(Boolean);
+
+            if (!winnersOfPrevStage.includes(t.id)) {
+              return false;
+            }
+          }
+        } else {
+          if (tournament.tournament_type === 'league_knockout') {
+            const LEAGUE_STAGES = ['league', 'group_a', 'group_b', 'group_c', 'group_d',
+                                   'group_e', 'group_f', 'group_g', 'group_h'];
+            const leagueMatches = fixtures.filter(f => 
+              LEAGUE_STAGES.includes(f.stage) || f.stage.startsWith('group_')
+            );
+            if (leagueMatches.length > 0) {
+              const allLeagueCompleted = leagueMatches.every(f => f.status === 'completed');
+              if (!allLeagueCompleted) {
+                return false;
+              }
+              if (leagueStatus && leagueStatus.qualified_teams) {
+                const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
+                if (!isQualifiedFromLeague) {
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+      return true;
+    });
+  };
+
+  const handleBulkFixtureSubmit = async () => {
+    if (bulkMatchups.length === 0) {
+      showToast('Please add at least one matchup.', 'error');
+      return;
+    }
+
+    for (const m of bulkMatchups) {
+      if (!m.team_a || !m.team_b) {
+        showToast('Please select both teams for all matchups.', 'error');
+        return;
+      }
+      if (m.team_a === m.team_b) {
+        showToast('A team cannot play against itself.', 'error');
+        return;
+      }
+    }
+
+    const seenMatchups = new Set();
+    for (const m of bulkMatchups) {
+      const pair = [m.team_a, m.team_b].sort().join('-');
+      if (seenMatchups.has(pair)) {
+        showToast('Duplicate matchups are not allowed in the list.', 'error');
+        return;
+      }
+      seenMatchups.add(pair);
+    }
+
+    try {
+      const payload = bulkMatchups.map(m => ({
+        tournament: id,
+        team_a: m.team_a,
+        team_b: m.team_b,
+        stage: bulkFixtureStage,
+        status: 'scheduled'
+      }));
+
+      const res = await api.post('/fixtures/', payload);
+      const added = Array.isArray(res.data) ? res.data : [res.data];
+      
+      setFixtures([...fixtures, ...added]);
+      showToast(`${added.length} fixtures generated successfully!`, 'success');
+      setShowBulkFixtureModal(false);
+      setBulkMatchups([{ id: 1, team_a: '', team_b: '' }]);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to generate bulk fixtures.', 'error');
+    }
+  };
+
+  const handleAutoPairRemaining = () => {
+    const eligible = getEligibleTeamsForStage(bulkFixtureStage);
+    
+    const selectedTeamIds = new Set();
+    bulkMatchups.forEach(m => {
+      if (m.team_a) selectedTeamIds.add(m.team_a);
+      if (m.team_b) selectedTeamIds.add(m.team_b);
+    });
+
+    const unselected = eligible.filter(t => !selectedTeamIds.has(t.id));
+    if (unselected.length < 2) {
+      showToast('Not enough unselected eligible teams to pair.', 'error');
+      return;
+    }
+
+    const newPairs = [];
+    for (let i = 0; i < unselected.length - 1; i += 2) {
+      newPairs.push({
+        id: Date.now() + i,
+        team_a: unselected[i].id,
+        team_b: unselected[i + 1].id
+      });
+    }
+
+    const cleanedCurrent = bulkMatchups.filter(m => m.team_a || m.team_b);
+
+    setBulkMatchups([...cleanedCurrent, ...newPairs]);
+    showToast(`Paired ${newPairs.length * 2} teams into ${newPairs.length} matchups!`, 'success');
+  };
+
   const KNOCKOUT_STAGE_OPTIONS = [
     { value: 'round_of_64', label: 'Round of 64' },
     { value: 'round_of_32', label: 'Round of 32' },
     { value: 'round_of_16', label: 'Round of 16' },
     { value: 'quarter',     label: 'Quarter Final' },
     { value: 'semi',        label: 'Semi Final' },
+    { value: 'third_place', label: 'Third Place' },
     { value: 'final',       label: 'Final' },
   ];
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative text-[var(--txt)]">
@@ -1457,35 +1801,110 @@ export default function TournamentManage() {
       ═══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {getTournamentWinner() && (
+            <div style={{
+              background: 'linear-gradient(135deg, #fef08a 0%, #fde047 100%)',
+              border: '2px solid #eab308',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+              boxShadow: '0 4px 20px rgba(234,179,8,0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}>
+              <span style={{ fontSize: '48px', lineHeight: '1' }}>🏆</span>
+              <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Tournament Champion
+              </h2>
+              <p style={{ fontSize: '28px', fontWeight: '950', color: '#1e293b', marginTop: '4px' }}>
+                {getTournamentWinner()}
+              </p>
+              <p style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', opacity: 0.85 }}>
+                Congratulations to the winners of {tournament.name}! 🎉
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             
-            {/* Meta summary card */}
-            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4 md:col-span-2">
-              <h3 className="font-extrabold text-base border-b border-[var(--border)] pb-2">Tournament Details</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm font-semibold">
-                <div>
-                  <span className="text-xs font-bold text-[var(--txt2)] block">Age category</span>
-                  <span className="text-[var(--txt)] mt-0.5 block">{ageLabels[tournament.age_category] || tournament.age_category}</span>
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-[var(--txt2)] block">Ground type</span>
-                  <span className="text-[var(--txt)] mt-0.5 block">{tournament.ground_type} chip size</span>
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-[var(--txt2)] block">Tournament type</span>
-                  <span className="text-[var(--txt)] mt-0.5 block">{typeLabels[tournament.tournament_type]}</span>
-                </div>
-                {tournament.activated_at && (
+            {/* Left Column (Details & Settings) */}
+            <div className="md:col-span-2 space-y-6">
+              {/* Meta summary card */}
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
+                <h3 className="font-extrabold text-base border-b border-[var(--border)] pb-2">Tournament Details</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm font-semibold">
                   <div>
-                    <span className="text-xs font-bold text-[var(--txt2)] block">Activated date</span>
-                    <span className="text-[var(--txt)] mt-0.5 block">{new Date(tournament.activated_at).toLocaleDateString()}</span>
+                    <span className="text-xs font-bold text-[var(--txt2)] block">Age category</span>
+                    <span className="text-[var(--txt)] mt-0.5 block">{ageLabels[tournament.age_category] || tournament.age_category}</span>
                   </div>
-                )}
+                  <div>
+                    <span className="text-xs font-bold text-[var(--txt2)] block">Ground type</span>
+                    <span className="text-[var(--txt)] mt-0.5 block">{tournament.ground_type} chip size</span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[var(--txt2)] block">Tournament type</span>
+                    <span className="text-[var(--txt)] mt-0.5 block">{typeLabels[tournament.tournament_type]}</span>
+                  </div>
+                  {tournament.activated_at && (
+                    <div>
+                      <span className="text-xs font-bold text-[var(--txt2)] block">Activated date</span>
+                      <span className="text-[var(--txt)] mt-0.5 block">{new Date(tournament.activated_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Knockout Options / settings card */}
+              {(tournament.tournament_type === 'knockout' || tournament.tournament_type === 'league_knockout') && (
+                <div className={`rounded-2xl p-6 border shadow-sm space-y-4 transition-all duration-200 ${
+                  tournament.third_place_option 
+                    ? 'bg-green-50/10 border-green-200 dark:border-green-900/60' 
+                    : 'bg-[var(--card)] border-[var(--border)]'
+                }`}>
+                  <h3 className="font-extrabold text-base border-b border-[var(--border)] pb-2 flex items-center justify-between">
+                    <span className="flex items-center gap-2">⚙️ Knockout Settings</span>
+                    {tournament.third_place_option && (
+                      <span className="text-[10px] font-black bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-900/60 px-2 py-0.5 rounded-full uppercase tracking-wider animate-fade-in">
+                        Enabled
+                      </span>
+                    )}
+                  </h3>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        disabled={tournament.status === 'completed'}
+                        checked={tournament.third_place_option || false}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          try {
+                            const res = await api.patch(`/tournaments/${tournament.id}/`, { third_place_option: val });
+                            setTournament(res.data);
+                            showToast('Settings updated successfully', 'success');
+                          } catch (err) {
+                            showToast('Failed to update settings', 'error');
+                          }
+                        }}
+                      />
+                      <div 
+                        className="w-10 h-6 rounded-full transition-all duration-200" 
+                        style={{ backgroundColor: tournament.third_place_option ? '#16a34a' : '#d4d4d8' }}
+                      />
+                      <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow-md transition-all duration-200 ${tournament.third_place_option ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
+                    <span className="text-sm font-semibold text-[var(--txt)]">Create Third Place Playoff match (losers of Semi Finals play for 3rd/4th)</span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Metrics column */}
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+
               <div className="space-y-4">
                 <h3 className="font-extrabold text-base border-b border-[var(--border)] pb-2">Match Progression</h3>
                 <div className="flex items-center justify-between font-bold text-sm">
@@ -1639,8 +2058,16 @@ export default function TournamentManage() {
                       padding: '14px 16px',
                     }}>
                       <div style={{ fontSize: '10px', fontWeight: '800', color: '#92400e', letterSpacing: '0.05em', marginBottom: '4px' }}>{awardLabel}</div>
-                      <div style={{ fontSize: '15px', fontWeight: '900', color: '#111827' }}>{a.player_display_name || a.player_name}</div>
-                      {a.team_name && <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginTop: '2px' }}>{a.team_name}</div>}
+                      <div style={{ fontSize: '15px', fontWeight: '900', color: '#111827' }}>
+                        {a.award_type === 'best_team' 
+                          ? a.team_name 
+                          : (a.player_display_name || a.player_name || a.team_name)}
+                      </div>
+                      {a.award_type !== 'best_team' && a.team_name && (
+                        <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginTop: '2px' }}>
+                          {a.team_name}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2213,6 +2640,32 @@ export default function TournamentManage() {
                   </button>
                 )}
 
+                {tournament.fixture_generation_mode === 'manual' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkFixtureStage(tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league');
+                      setBulkMatchups([{ id: Date.now(), team_a: '', team_b: '' }]);
+                      setShowBulkFixtureModal(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: '#1e293b',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    ⚡ Bulk Generate
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league' } })}
@@ -2423,15 +2876,51 @@ export default function TournamentManage() {
 
       {activeTab === 'knockout' && (
         <div>
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827' }}>
-              Knockout Bracket
-            </h3>
-            <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
-              Click any match with two teams assigned to enter its result.
-              Winners automatically advance to the next round.
-            </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827' }}>
+                Knockout Bracket
+              </h3>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                Click any match with two teams assigned to enter its result.
+                Winners automatically advance to the next round.
+              </p>
+            </div>
+            
+            {canAdvanceRound && (
+              <button
+                type="button"
+                onClick={handleAdvanceRound}
+                disabled={advancingRound}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: '#7c3aed',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: advancingRound ? 'not-allowed' : 'pointer',
+                  opacity: advancingRound ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.30)',
+                  animation: 'pulse-glow 2s ease-in-out infinite',
+                }}
+              >
+                {advancingRound ? (
+                  <>
+                    <div style={{ width: '12px', height: '12px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span>Advancing...</span>
+                  </>
+                ) : (
+                  <>⚡ Advance to Next Round →</>
+                )}
+              </button>
+            )}
           </div>
+
 
           <BracketView
             tournamentId={tournament.id}
@@ -2791,6 +3280,160 @@ export default function TournamentManage() {
       )}
 
       {/* ── MODALS SECTION ────────────────────────────────────────────────── */}
+
+      {/* Bulk Fixture Generation Modal */}
+      {showBulkFixtureModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-up animate-fade-in">
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
+              <h2 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">⚡ Bulk Generate Fixtures</h2>
+              <button 
+                onClick={() => setShowBulkFixtureModal(false)}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 font-extrabold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 text-left">
+              {/* Select Stage */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Stage / Round</label>
+                <select
+                  value={bulkFixtureStage}
+                  onChange={(e) => {
+                    setBulkFixtureStage(e.target.value);
+                    setBulkMatchups([{ id: Date.now(), team_a: '', team_b: '' }]);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-sm font-semibold"
+                >
+                  {tournament.tournament_type === 'league' ? (
+                    <option value="league">League Round</option>
+                  ) : (
+                    <>
+                      {tournament.tournament_type === 'league_knockout' && <option value="league">League / Group Stage</option>}
+                      <option value="round_of_64">Round of 64</option>
+                      <option value="round_of_32">Round of 32</option>
+                      <option value="round_of_16">Round of 16</option>
+                      <option value="quarter">Quarter Final</option>
+                      <option value="semi">Semi Final</option>
+                      <option value="third_place">Third Place Playoff</option>
+                      <option value="final">Final</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Matchups list */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider">Matchups</label>
+                  <button
+                    type="button"
+                    onClick={handleAutoPairRemaining}
+                    className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                  >
+                    🤝 Auto Pair Remaining Teams
+                  </button>
+                </div>
+                
+                {bulkMatchups.map((m, index) => {
+                  const eligible = getEligibleTeamsForStage(bulkFixtureStage);
+                  const selectedA = m.team_a;
+                  const selectedB = m.team_b;
+
+                  // Filter out teams selected in OTHER rows
+                  const otherSelectedIds = new Set();
+                  bulkMatchups.forEach(other => {
+                    if (other.id !== m.id) {
+                      if (other.team_a) otherSelectedIds.add(other.team_a);
+                      if (other.team_b) otherSelectedIds.add(other.team_b);
+                    }
+                  });
+
+                  const availableTeamsA = eligible.filter(t => !otherSelectedIds.has(t.id));
+                  const availableTeamsB = eligible.filter(t => !otherSelectedIds.has(t.id) && t.id !== selectedA);
+
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                      <span className="text-xs font-extrabold text-zinc-400 w-6">#{index + 1}</span>
+                      
+                      {/* Team A selector */}
+                      <select
+                        value={selectedA}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBulkMatchups(bulkMatchups.map(item => item.id === m.id ? { ...item, team_a: val } : item));
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold"
+                      >
+                        <option value="">Select Team A</option>
+                        {availableTeamsA.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+
+                      <span className="text-xs font-bold text-zinc-400">vs</span>
+
+                      {/* Team B selector */}
+                      <select
+                        value={selectedB}
+                        disabled={!selectedA}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBulkMatchups(bulkMatchups.map(item => item.id === m.id ? { ...item, team_b: val } : item));
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold disabled:opacity-50"
+                      >
+                        <option value="">Select Team B</option>
+                        {availableTeamsB.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Delete Matchup */}
+                      {bulkMatchups.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setBulkMatchups(bulkMatchups.filter(item => item.id !== m.id))}
+                          className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setBulkMatchups([...bulkMatchups, { id: Date.now(), team_a: '', team_b: '' }])}
+                className="w-full py-2 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-xs font-bold transition-colors"
+              >
+                + Add Matchup Row
+              </button>
+            </div>
+
+            <div className="bg-zinc-50 dark:bg-zinc-900/60 p-4 border-t border-[var(--border)] flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowBulkFixtureModal(false)}
+                className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold text-xs text-zinc-700 dark:text-zinc-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkFixtureSubmit}
+                className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-xl font-bold text-xs transition-colors"
+              >
+                Generate Fixtures
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Activate Confirmation Modal */}
       {activateModal && (
@@ -3270,7 +3913,7 @@ export default function TournamentManage() {
                         value={match.team_a}
                         onChange={e => handleUpdateManualMatch(idx, 'team_a', e.target.value)}
                         style={{
-                          width: 'full', width: '100%', padding: '6px 10px', borderRadius: '8px',
+                          width: '100%', padding: '6px 10px', borderRadius: '8px',
                           border: '1.5px solid #d1d5db', backgroundColor: '#fff',
                           fontSize: '12px', fontWeight: '600', color: '#111827',
                         }}
@@ -3289,7 +3932,7 @@ export default function TournamentManage() {
                         value={match.team_b}
                         onChange={e => handleUpdateManualMatch(idx, 'team_b', e.target.value)}
                         style={{
-                          width: 'full', width: '100%', padding: '6px 10px', borderRadius: '8px',
+                          width: '100%', padding: '6px 10px', borderRadius: '8px',
                           border: '1.5px solid #d1d5db', backgroundColor: '#fff',
                           fontSize: '12px', fontWeight: '600', color: '#111827',
                         }}

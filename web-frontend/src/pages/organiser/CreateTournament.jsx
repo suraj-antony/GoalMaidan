@@ -96,8 +96,10 @@ export default function CreateTournament() {
     age_category: '',
     tournament_type: '',
     home_and_away: false,
+    third_place_option: false,
     knockout_qualifiers: 4,
     max_teams: 8,
+
     team_names: [],              // array of strings
     fixture_generation_mode: 'auto',
     league_knockout_style: 'single_group',
@@ -929,13 +931,51 @@ export default function CreateTournament() {
                       checked={formData.home_and_away}
                       onChange={e => updateField('home_and_away', e.target.checked)}
                     />
-                    <div className={`w-10 h-6 rounded-full transition-all duration-200 ${formData.home_and_away ? 'bg-green-600' : 'bg-zinc-300 dark:bg-zinc-700'}`} />
+                    <div 
+                      className="w-10 h-6 rounded-full transition-all duration-200" 
+                      style={{ backgroundColor: formData.home_and_away ? '#16a34a' : '#d4d4d8' }}
+                    />
                     <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow-md transition-all duration-200 ${formData.home_and_away ? 'translate-x-4' : 'translate-x-0'}`} />
                   </div>
                   <span className="text-sm font-semibold text-[var(--txt)]">Home &amp; Away (play each other twice)</span>
                 </label>
               </div>
             )}
+
+            {/* Knockout Sub-options */}
+            {(formData.tournament_type === 'knockout' || formData.tournament_type === 'league_knockout') && (
+              <div className={`p-5 rounded-2xl border space-y-4 transition-all duration-200 ${
+                formData.third_place_option 
+                  ? 'bg-green-50/10 border-green-200 dark:border-green-900/60' 
+                  : 'bg-zinc-50 dark:bg-zinc-900/60 border-[var(--border)]'
+              }`}>
+                <h4 className="font-bold text-sm text-[var(--txt)] flex items-center justify-between">
+                  <span>Knockout Settings</span>
+                  {formData.third_place_option && (
+                    <span className="text-[10px] font-black bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-900/60 px-2 py-0.5 rounded-full uppercase tracking-wider animate-fade-in">
+                      Enabled
+                    </span>
+                  )}
+                </h4>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={formData.third_place_option}
+                      onChange={e => updateField('third_place_option', e.target.checked)}
+                    />
+                    <div 
+                      className="w-10 h-6 rounded-full transition-all duration-200" 
+                      style={{ backgroundColor: formData.third_place_option ? '#16a34a' : '#d4d4d8' }}
+                    />
+                    <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow-md transition-all duration-200 ${formData.third_place_option ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                  <span className="text-sm font-semibold text-[var(--txt)]">Create Third Place Playoff match (losers of Semi Finals play for 3rd/4th)</span>
+                </label>
+              </div>
+            )}
+
 
             {/* Max Teams */}
             <div>
@@ -1751,6 +1791,9 @@ export default function CreateTournament() {
                 { label: 'Organising Area',    value: formData.area_name || 'Not Specified' },
                 { label: 'Tournament Format',  value: formData.tournament_type === 'league' ? 'League Only' : formData.tournament_type === 'knockout' ? 'Knockout Only' : 'League + Knockout' },
                 { label: 'Home & Away',        value: formData.home_and_away ? 'Yes ✅' : 'No ❌' },
+                ...(formData.tournament_type === 'knockout' || formData.tournament_type === 'league_knockout' ? [
+                  { label: 'Third Place Playoff', value: formData.third_place_option ? 'Yes ✅' : 'No ❌' }
+                ] : []),
                 { label: 'Max Teams',          value: `${formData.max_teams} Teams` },
                 { label: 'Fixture Generation', value: formData.fixture_generation_mode === 'auto' ? '⚡ Auto Generate' : '✏️ Manual Entry' },
                 { label: 'Private Tournament', value: formData.is_private ? 'Yes ✅' : 'No ❌' },

@@ -446,10 +446,20 @@ class TournamentGroupFixturesView(APIView):
 def check_tournament_complete(tournament):
     total = tournament.fixtures.count()
     completed = tournament.fixtures.filter(status='completed').count()
-    if total > 0 and total == completed:
+    if total == 0:
+        return
+
+    # For knockout-based tournaments, it is only complete if the final match is completed
+    if tournament.tournament_type in ['knockout', 'league_knockout']:
+        final_match = tournament.fixtures.filter(stage='final').first()
+        if not final_match or final_match.status != 'completed':
+            return # final is not done yet
+
+    if total == completed:
         tournament.status = 'completed'
         tournament.completed_at = timezone.now()
         tournament.save()
+
 
 
 class TournamentGenerateFixturesView(APIView):

@@ -13,7 +13,186 @@ from apps.awards.models import LeagueTable, MatchAward
 from apps.tournaments.views import check_tournament_complete
 from .generator import generate_league_fixtures, generate_knockout_fixtures, generate_league_knockout_fixtures
 
+def validate_stage_eligibility(tournament, team_id, stage, exclude_fixture_id=None):
+    if not team_id:
+        return None
+
+    import uuid
+    from django.db.models import Q
+    from apps.teams.models import Team
+
+    # Only apply to knockout stages
+    knockout_stages = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final']
+    if stage not in knockout_stages:
+        return None
+
+    # Rule 1: A team cannot be scheduled in the same stage twice
+    same_stage_scheduled = Fixture.objects.filter(
+        tournament=tournament, stage=stage
+    ).exclude(id=exclude_fixture_id)
+
+    if same_stage_scheduled.filter(Q(team_a_id=team_id) | Q(team_b_id=team_id)).exists():
+        try:
+            team_name = Team.objects.get(id=team_id).name
+        except Team.DoesNotExist:
+            team_name = "Selected Team"
+        return f"{team_name} is already scheduled in this stage ({stage.replace('_', ' ').title()})."
+
+    # Rule 2: Check previous stage progression
+    stage_order = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+    try:
+        stage_idx = stage_order.index(stage)
+    except ValueError:
+        # e.g., 'third_place' is a special stage. For third_place, the previous stage is 'semi'
+        if stage == 'third_place':
+            stage_idx = stage_order.index('final') # treat third_place as final level
+        else:
+            stage_idx = -1
+
+    if stage_idx > 0:
+        # Find if there is a previous stage in the tournament that actually has matches
+        prev_stage_with_matches = None
+        for idx in range(stage_idx - 1, -1, -1):
+            check_stage = stage_order[idx]
+            if Fixture.objects.filter(tournament=tournament, stage=check_stage).exists():
+                prev_stage_with_matches = check_stage
+                break
+
+        if prev_stage_with_matches:
+            prev_fixtures = Fixture.objects.filter(tournament=tournament, stage=prev_stage_with_matches)
+            # Check if all matches in previous stage are completed
+            if prev_fixtures.filter(status='completed').count() < prev_fixtures.count():
+                return f"Cannot schedule teams for this stage because the previous stage ({prev_stage_with_matches.replace('_', ' ').title()}) is not finished yet."
+
+            # If all are completed, collect winners and losers
+            winners = []
+            losers = []
+            for f in prev_fixtures:
+                w = None
+                l = None
+                if f.winner:
+                    w = f.winner_id
+                    l = f.team_b_id if f.winner_id == f.team_a_id else f.team_a_id
+                elif f.score_a is not None and f.score_b is not None:
+                    if f.score_a > f.score_b:
+                        w = f.team_a_id
+                        l = f.team_b_id
+                    elif f.score_b > f.score_a:
+                        w = f.team_b_id
+                        l = f.team_a_id
+                if w:
+                    winners.append(w)
+                if l:
+                    losers.append(l)
+
+            # Convert team_id to UUID object for comparison
+            t_uuid = uuid.UUID(str(team_id)) if isinstance(team_id, str) else team_id
+
+            if stage == 'third_place':
+                # For third place, the team must be one of the losers of the semifinals
+                if t_uuid not in losers and team_id not in losers:
+                    try:
+                        team_name = Team.objects.get(id=team_id).name
+                    except Team.DoesNotExist:
+                        team_name = "Selected Team"
+                    return f"{team_name} did not lose in the semi finals, so they cannot play in the third place match."
+            else:
+                # For normal knockout stages, the team must be one of the winners of the previous stage
+                if t_uuid not in winners and team_id not in winners:
+                    try:
+                        team_name = Team.objects.get(id=team_id).name
+                    except Team.DoesNotExist:
+                        team_name = "Selected Team"
+                    return f"{team_name} did not qualify from the previous stage ({prev_stage_with_matches.replace('_', ' ').title()})."
+        else:
+            # If no previous knockout stage has matches, and the tournament is league_knockout
+            if tournament.tournament_type == 'league_knockout':
+                status_data = get_league_status(tournament)
+                if status_data['total_league'] > 0:
+                    if not status_data['league_complete']:
+                        return "Cannot schedule knockout matches because the league phase is not finished yet."
+                    qualified_ids = [str(q['id']) for q in status_data['qualified_teams']]
+                    if str(team_id) not in qualified_ids:
+                        try:
+                            team_name = Team.objects.get(id=team_id).name
+                        except Team.DoesNotExist:
+                            team_name = "Selected Team"
+                        return f"{team_name} did not qualify from the league phase."
+
+    return None
+
+def auto_create_final_and_third_place(tournament):
+    from_fixtures = Fixture.objects.filter(
+        tournament=tournament, stage='semi'
+    ).order_by('round_number', 'created_at')
+
+    # Semi-finals must exist and all must be completed
+    if from_fixtures.count() == 0:
+        return
+    if from_fixtures.filter(status='completed').count() < from_fixtures.count():
+        return  # Not all done yet
+
+    # Collect winners and losers
+    winners = []
+    losers = []
+    for f in from_fixtures:
+        w = None
+        l = None
+        if f.winner:
+            w = f.winner
+            l = f.team_b if f.winner == f.team_a else f.team_a
+        elif f.score_a is not None and f.score_b is not None:
+            if f.score_a > f.score_b:
+                w = f.team_a
+                l = f.team_b
+            elif f.score_b > f.score_a:
+                w = f.team_b
+                l = f.team_a
+        if w and l:
+            winners.append(w)
+            losers.append(l)
+
+    if len(winners) < 2 or len(losers) < 2:
+        return
+
+    # 1. Final match creation or update
+    final_fixture = Fixture.objects.filter(tournament=tournament, stage='final').first()
+    if not final_fixture:
+        Fixture.objects.create(
+            tournament=tournament,
+            stage='final',
+            round_number=_round_number_from_stage('final'),
+            team_a=winners[0],
+            team_b=winners[1],
+            status='scheduled'
+        )
+    else:
+        final_fixture.team_a = winners[0]
+        final_fixture.team_b = winners[1]
+        final_fixture.save(update_fields=['team_a', 'team_b'])
+
+    # 2. Third place match creation or update (if enabled)
+    if tournament.third_place_option:
+        tp_fixture = Fixture.objects.filter(tournament=tournament, stage='third_place').first()
+        if not tp_fixture:
+            Fixture.objects.create(
+                tournament=tournament,
+                stage='third_place',
+                round_number=_round_number_from_stage('third_place'),
+                team_a=losers[0],
+                team_b=losers[1],
+                status='scheduled'
+            )
+        else:
+            tp_fixture.team_a = losers[0]
+            tp_fixture.team_b = losers[1]
+            tp_fixture.save(update_fields=['team_a', 'team_b'])
+
 def _auto_advance_bracket(tournament, from_stage, to_stage):
+    if from_stage == 'semi':
+        auto_create_final_and_third_place(tournament)
+        return
+
     """
     After every match in `from_stage` is completed, collect the winners
     in round_number / created_at order and slot them into the `to_stage`
@@ -652,9 +831,12 @@ def validate_knockout_eligibility(tournament, team_a_id, team_b_id, exclude_fixt
 
 def _round_number_from_stage(stage):
     order = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+    if stage == 'third_place':
+        return len(order)
     if stage in order:
         return order.index(stage) + 1
     return 1
+
 
 class FixtureListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -695,7 +877,72 @@ class FixtureListView(APIView):
     def post(self, request):
         if request.user.role != 'organiser':
             return Response({"error": "Only organisers can create fixtures"}, status=status.HTTP_403_FORBIDDEN)
-        
+            
+        from django.db import transaction
+
+        # Support bulk list of fixtures
+        if isinstance(request.data, list):
+            created_fixtures = []
+            try:
+                with transaction.atomic():
+                    for item in request.data:
+                        tournament_id = item.get('tournament')
+                        tournament = get_object_or_404(Tournament, id=tournament_id)
+                        if request.user != tournament.organiser:
+                            return Response({"error": "You don't own this tournament"}, status=status.HTTP_403_FORBIDDEN)
+                        if tournament.status == 'completed':
+                            return Response({"error": "Cannot add fixtures after tournament is completed."}, status=status.HTTP_400_BAD_REQUEST)
+
+                        team_a = item.get('team_a')
+                        team_b = item.get('team_b')
+                        stage = item.get('stage')
+
+                        dup_error = validate_fixture_duplicate(tournament, team_a, team_b, stage=stage)
+                        if dup_error:
+                            return Response({"error": dup_error}, status=status.HTTP_400_BAD_REQUEST)
+
+                        if team_a:
+                            elig_error_a = validate_stage_eligibility(tournament, team_a, stage)
+                            if elig_error_a:
+                                return Response({"error": elig_error_a}, status=status.HTTP_400_BAD_REQUEST)
+                        if team_b:
+                            elig_error_b = validate_stage_eligibility(tournament, team_b, stage)
+                            if elig_error_b:
+                                return Response({"error": elig_error_b}, status=status.HTTP_400_BAD_REQUEST)
+
+                        is_knockout = (
+                            tournament.tournament_type == 'knockout' or
+                            stage not in ['league', None]
+                        )
+
+                        if is_knockout and tournament.fixture_generation_mode != 'manual':
+                            ko_error = validate_knockout_eligibility(tournament, team_a, team_b)
+                            if ko_error:
+                                return Response({"error": ko_error}, status=status.HTTP_400_BAD_REQUEST)
+
+                        if team_a and team_b and str(team_a) == str(team_b):
+                            return Response({"error": "A team cannot play against itself."}, status=status.HTTP_400_BAD_REQUEST)
+
+                        serializer = FixtureSerializer(data=item)
+                        if serializer.is_valid():
+                            fixture = serializer.save()
+                            if is_knockout:
+                                if tournament.fixture_generation_mode == 'manual':
+                                    fixture.round_number = _round_number_from_stage(fixture.stage)
+                                else:
+                                    ko_fixtures = Fixture.objects.filter(tournament=tournament)
+                                    if tournament.tournament_type == 'league_knockout':
+                                        ko_fixtures = ko_fixtures.exclude(stage='league')
+                                    wins = ko_fixtures.filter(status='completed', winner_id=fixture.team_a_id).count()
+                                    fixture.round_number = wins + 1
+                                fixture.save(update_fields=['round_number'])
+                            created_fixtures.append(serializer.data)
+                        else:
+                            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(created_fixtures, status=status.HTTP_201_CREATED)
+
         tournament_id = request.data.get('tournament')
         tournament = get_object_or_404(Tournament, id=tournament_id)
         if request.user != tournament.organiser:
@@ -713,10 +960,23 @@ class FixtureListView(APIView):
         if dup_error:
             return Response({"error": dup_error}, status=status.HTTP_400_BAD_REQUEST)
 
+        stage = request.data.get('stage')
+        team_a = request.data.get('team_a')
+        team_b = request.data.get('team_b')
+        if team_a:
+            elig_error_a = validate_stage_eligibility(tournament, team_a, stage)
+            if elig_error_a:
+                return Response({"error": elig_error_a}, status=status.HTTP_400_BAD_REQUEST)
+        if team_b:
+            elig_error_b = validate_stage_eligibility(tournament, team_b, stage)
+            if elig_error_b:
+                return Response({"error": elig_error_b}, status=status.HTTP_400_BAD_REQUEST)
+
         is_knockout = (
             tournament.tournament_type == 'knockout' or
             request.data.get('stage') not in ['league', None]
         )
+
         # In manual mode the organiser freely assigns teams to any stage—skip eligibility checks
         if is_knockout and tournament.fixture_generation_mode != 'manual':
             ko_error = validate_knockout_eligibility(
@@ -726,6 +986,9 @@ class FixtureListView(APIView):
             )
             if ko_error:
                 return Response({"error": ko_error}, status=status.HTTP_400_BAD_REQUEST)
+
+        if team_a and team_b and str(team_a) == str(team_b):
+            return Response({"error": "A team cannot play against itself."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = FixtureSerializer(data=request.data)
         if serializer.is_valid():
@@ -757,20 +1020,56 @@ class FixtureDetailView(APIView):
         if fixture.tournament.status == 'completed':
             return Response({"error": "Cannot edit fixtures after tournament is completed."}, status=status.HTTP_400_BAD_REQUEST)
 
+        stage = request.data.get('stage', fixture.stage)
+        team_a = request.data.get('team_a', fixture.team_a_id)
+        team_b = request.data.get('team_b', fixture.team_b_id)
+
+        # Auto-swap logic for knockout stages
+        knockout_stages = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'third_place', 'final']
+        if stage in knockout_stages:
+            from django.db.models import Q
+            if team_a and str(team_a) != str(fixture.team_a_id):
+                other_a = Fixture.objects.filter(tournament=fixture.tournament, stage=stage).exclude(id=fixture.id).filter(Q(team_a_id=team_a) | Q(team_b_id=team_a)).first()
+                if other_a:
+                    if str(other_a.team_a_id) == str(team_a):
+                        other_a.team_a_id = fixture.team_a_id
+                    else:
+                        other_a.team_b_id = fixture.team_a_id
+                    other_a.save()
+
+            if team_b and str(team_b) != str(fixture.team_b_id):
+                other_b = Fixture.objects.filter(tournament=fixture.tournament, stage=stage).exclude(id=fixture.id).filter(Q(team_a_id=team_b) | Q(team_b_id=team_b)).first()
+                if other_b:
+                    if str(other_b.team_a_id) == str(team_b):
+                        other_b.team_a_id = fixture.team_b_id
+                    else:
+                        other_b.team_b_id = fixture.team_b_id
+                    other_b.save()
+
         dup_error = validate_fixture_duplicate(
             fixture.tournament,
-            request.data.get('team_a', fixture.team_a_id),
-            request.data.get('team_b', fixture.team_b_id),
-            stage=request.data.get('stage', fixture.stage),
+            team_a,
+            team_b,
+            stage=stage,
             exclude_fixture_id=fixture.id
         )
         if dup_error:
             return Response({"error": dup_error}, status=status.HTTP_400_BAD_REQUEST)
 
+        if team_a:
+            elig_error_a = validate_stage_eligibility(fixture.tournament, team_a, stage, exclude_fixture_id=fixture.id)
+            if elig_error_a:
+                return Response({"error": elig_error_a}, status=status.HTTP_400_BAD_REQUEST)
+        if team_b:
+            elig_error_b = validate_stage_eligibility(fixture.tournament, team_b, stage, exclude_fixture_id=fixture.id)
+            if elig_error_b:
+                return Response({"error": elig_error_b}, status=status.HTTP_400_BAD_REQUEST)
+
         is_knockout = (
             fixture.tournament.tournament_type == 'knockout' or
             request.data.get('stage', fixture.stage) not in ['league', None]
         )
+
         # In manual mode the organiser freely assigns teams to any stage—skip eligibility checks
         if is_knockout and fixture.tournament.fixture_generation_mode != 'manual':
             ko_error = validate_knockout_eligibility(
