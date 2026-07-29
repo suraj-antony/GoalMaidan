@@ -854,7 +854,7 @@ class FixtureListView(APIView):
             if not has_access:
                 return Response({"error": "Access restricted"}, status=status.HTTP_403_FORBIDDEN)
                 
-        fixtures = Fixture.objects.filter(tournament=tournament).order_by('match_date', 'match_time', 'round_number')
+        fixtures = Fixture.objects.filter(tournament=tournament).select_related('team_a', 'team_b').prefetch_related('events', 'awards').order_by('match_date', 'match_time', 'round_number')
 
         # Auto-advance: fill next-round placeholders if previous stage is fully complete
         # This handles cases where semis were already done before this feature existed.
@@ -870,7 +870,7 @@ class FixtureListView(APIView):
                 _auto_advance_bracket(tournament, from_stage=from_stage, to_stage=to_stage)
 
         # Re-fetch after potential updates
-        fixtures = Fixture.objects.filter(tournament=tournament).order_by('match_date', 'match_time', 'round_number')
+        fixtures = Fixture.objects.filter(tournament=tournament).select_related('team_a', 'team_b').prefetch_related('events', 'awards').order_by('match_date', 'match_time', 'round_number')
         return Response(FixtureSerializer(fixtures, many=True).data)
 
 
@@ -1342,7 +1342,7 @@ def bracket_view(request, tournament_id):
 
     knockout_fixtures = tournament.fixtures.filter(
         stage__in=KNOCKOUT_STAGE_ORDER
-    ).select_related('team_a', 'team_b').order_by('round_number', 'bracket_position')
+    ).select_related('team_a', 'team_b').prefetch_related('events').order_by('round_number', 'bracket_position')
 
     if not knockout_fixtures.exists():
         return Response({'rounds': [], 'champion': None})
@@ -1369,6 +1369,15 @@ def bracket_view(request, tournament_id):
                 'winner': str(f.winner.id) if f.winner else None,
                 'penalty_score_a': f.penalty_score_a,
                 'penalty_score_b': f.penalty_score_b,
+                'stage': f.stage,
+                'events': [
+                    {
+                        'event_type': e.event_type,
+                        'player_name': e.player_name,
+                        'team_id': str(e.team_id) if e.team_id else None,
+                    }
+                    for e in f.events.all()
+                ]
             })
 
         rounds.append({
@@ -1377,9 +1386,38 @@ def bracket_view(request, tournament_id):
             'matches': matches,
         })
 
+    # Append third place playoff to the final round matches, if exists
+    final_round = next((r for r in rounds if r['stage'] == 'final'), None)
+    if final_round:
+        third_place_fixtures = tournament.fixtures.filter(stage='third_place').select_related('team_a', 'team_b').prefetch_related('events')
+        for f in third_place_fixtures:
+            final_round['matches'].append({
+                'id': str(f.id),
+                'team_a': {'id': str(f.team_a.id), 'name': f.team_a.name} if f.team_a else None,
+                'team_b': {'id': str(f.team_b.id), 'name': f.team_b.name} if f.team_b else None,
+                'score_a': f.score_a,
+                'score_b': f.score_b,
+                'status': f.status,
+                'match_date': f.match_date,
+                'match_time': f.match_time,
+                'venue': f.venue,
+                'winner': str(f.winner.id) if f.winner else None,
+                'penalty_score_a': f.penalty_score_a,
+                'penalty_score_b': f.penalty_score_b,
+                'stage': 'third_place',
+                'events': [
+                    {
+                        'event_type': e.event_type,
+                        'player_name': e.player_name,
+                        'team_id': str(e.team_id) if e.team_id else None,
+                    }
+                    for e in f.events.all()
+                ]
+            })
+
     # Determine champion — winner of the final, if completed
     champion = None
-    final_fixtures = knockout_fixtures.filter(stage='final')
+    final_fixtures = tournament.fixtures.filter(stage='final')
     if final_fixtures.exists():
         final = final_fixtures.first()
         if final.status == 'completed':
@@ -1393,4 +1431,135 @@ def bracket_view(request, tournament_id):
     return Response({
         'rounds': rounds,
         'champion': champion,
+    })
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+KNOCKOUT_STAGE_ORDER = ['round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
+LEAGUE_LIKE_STAGES_PREFIXES = ['league', 'group_']
+
+
+def _is_league_like_stage(stage):
+    return stage == 'league' or stage.startswith('group_')
+
+
+def _get_previous_knockout_stage(stage):
+    """Returns the stage name that comes immediately before `stage`, or None."""
+    if stage not in KNOCKOUT_STAGE_ORDER:
+        return None
+    idx = KNOCKOUT_STAGE_ORDER.index(stage)
+    if idx == 0:
+        return None
+    return KNOCKOUT_STAGE_ORDER[idx - 1]
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def eligible_teams_for_stage(request, tournament_id):
+    """
+    GET /api/fixtures/eligible-teams/:tournament_id/?stage=quarter
+
+    Returns the list of teams allowed to be selected for a fixture
+    in the given stage.
+    """
+    from apps.tournaments.models import Tournament
+    from apps.teams.models import Team
+    from apps.fixtures.models import Fixture
+
+    try:
+        tournament = Tournament.objects.get(id=tournament_id)
+    except Tournament.DoesNotExist:
+        return Response({'error': 'Tournament not found'}, status=404)
+
+    if tournament.organiser != request.user:
+        return Response({'error': 'Permission denied'}, status=403)
+
+    stage = request.query_params.get('stage', '')
+    if not stage:
+        return Response({'error': 'stage query param is required'}, status=400)
+
+    # Teams already used as team_a or team_b in THIS stage — exclude from dropdown
+    exclude_fixture_id = request.query_params.get('exclude_fixture_id', '')
+    current_stage_fixtures = tournament.fixture_set.filter(stage=stage)
+    if exclude_fixture_id:
+        current_stage_fixtures = current_stage_fixtures.exclude(id=exclude_fixture_id)
+    already_assigned_ids = set()
+    for f in current_stage_fixtures:
+        if f.team_a_id:
+            already_assigned_ids.add(str(f.team_a_id))
+        if f.team_b_id:
+            already_assigned_ids.add(str(f.team_b_id))
+
+    # ── Case 1: League or Group stage → all teams in that group ──
+    if _is_league_like_stage(stage):
+        if stage.startswith('group_'):
+            # Teams that belong to this specific group (from any existing group fixture)
+            group_team_ids = set()
+            for f in tournament.fixture_set.filter(stage=stage):
+                group_team_ids.add(f.team_a_id)
+                group_team_ids.add(f.team_b_id)
+            if group_team_ids:
+                teams = Team.objects.filter(id__in=group_team_ids, tournament=tournament)
+            else:
+                # No fixtures yet in this group — fall back to all tournament teams
+                teams = Team.objects.filter(tournament=tournament)
+        else:
+            teams = Team.objects.filter(tournament=tournament)
+
+        return Response({
+            'stage': stage,
+            'teams': [{'id': str(t.id), 'name': t.name} for t in teams],
+            'note': None,
+        })
+
+    # ── Case 2: Knockout stage ──
+    previous_stage = _get_previous_knockout_stage(stage)
+
+    if previous_stage is None:
+        # This IS the first knockout round — eligible teams are all teams
+        # entered into the knockout bracket, minus ones already placed
+        # into a fixture in this same stage.
+        all_teams = Team.objects.filter(tournament=tournament)
+        eligible = [
+            {'id': str(t.id), 'name': t.name}
+            for t in all_teams if str(t.id) not in already_assigned_ids
+        ]
+        return Response({'stage': stage, 'teams': eligible, 'note': None})
+
+    # Later knockout round — only winners of the previous stage
+    previous_fixtures = tournament.fixture_set.filter(stage=previous_stage)
+
+    if not previous_fixtures.exists():
+        return Response({
+            'stage': stage,
+            'teams': [],
+            'note': f'No {previous_stage.replace("_", " ")} fixtures found yet.',
+        })
+
+    incomplete_count = previous_fixtures.exclude(status='completed').count()
+
+    winners = []
+    for f in previous_fixtures.filter(status='completed'):
+        if f.score_a == f.score_b and not f.winner:
+            continue  # guard for draws without winner (though shouldn't happen in KO)
+        if f.winner:
+            winner = f.winner
+        else:
+            winner = f.team_a if f.score_a > f.score_b else f.team_b
+        if winner and str(winner.id) not in already_assigned_ids:
+            winners.append({'id': str(winner.id), 'name': winner.name})
+
+    note = None
+    if incomplete_count > 0:
+        note = (
+            f'{incomplete_count} {previous_stage.replace("_", " ")} '
+            f'match(es) not finished yet — their winners aren\'t available yet.'
+        )
+
+    return Response({
+        'stage': stage,
+        'teams': winners,
+        'note': note,
     })

@@ -753,11 +753,11 @@ export default function CreateTournament() {
 
             {/* Organising Area */}
             <div>
-              <label className="block text-sm font-bold text-[var(--txt)] mb-2">Organising Area Name</label>
+              <label className="block text-sm font-bold text-[var(--txt)] mb-2">Organising Team Name</label>
               <input
                 type="text"
                 className={inputCls(false)}
-                placeholder="e.g. Nagapattinam"
+                placeholder="e.g. GoalMaidan Organising Team"
                 value={formData.area_name}
                 onChange={e => updateField('area_name', e.target.value)}
               />
@@ -1788,7 +1788,7 @@ export default function CreateTournament() {
                 { label: 'Tournament Name',    value: formData.name },
                 { label: 'Ground Type',        value: formData.ground_type },
                 { label: 'Age Category',       value: AGE_CATEGORIES.find(c => c.value === formData.age_category)?.label || formData.age_category },
-                { label: 'Organising Area',    value: formData.area_name || 'Not Specified' },
+                { label: 'Organising Team Name',    value: formData.area_name || 'Not Specified' },
                 { label: 'Tournament Format',  value: formData.tournament_type === 'league' ? 'League Only' : formData.tournament_type === 'knockout' ? 'Knockout Only' : 'League + Knockout' },
                 { label: 'Home & Away',        value: formData.home_and_away ? 'Yes ✅' : 'No ❌' },
                 ...(formData.tournament_type === 'knockout' || formData.tournament_type === 'league_knockout' ? [

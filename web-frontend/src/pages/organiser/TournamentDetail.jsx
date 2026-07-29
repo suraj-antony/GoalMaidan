@@ -166,7 +166,7 @@ export default function TournamentDetail() {
           <div>
             <div className="flex items-center flex-wrap gap-2.5 mb-2.5">
               <StatusBadge status={tournament.status} />
-              <span className="text-xs font-semibold text-[var(--txt2)]">📍 {tournament.area_name}</span>
+              <span className="text-xs font-semibold text-[var(--txt2)]">🛡️ {tournament.area_name}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--txt)] tracking-tight">
               {tournament.name}
@@ -266,7 +266,7 @@ export default function TournamentDetail() {
               <div className="space-y-4">
                 {[
                   ['Name', tournament.name],
-                  ['Area', tournament.area_name || 'Not Specified'],
+                  ['Organising Team', tournament.area_name || 'Not Specified'],
                   ['Age Restriction', ageLabels[tournament.age_category] || tournament.age_category],
                   ['Format', typeLabels[tournament.tournament_type] || tournament.tournament_type],
                   ['Max Teams Allowed', `${tournament.max_teams} teams`],

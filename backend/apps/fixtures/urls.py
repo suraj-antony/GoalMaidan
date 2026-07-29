@@ -3,11 +3,12 @@ from .views import (
     AutoGenerateFixturesView, ManualFixturesView, FixtureListView,
     MatchResultView, MatchEventListCreateView, FixtureDetailView,
     league_phase_status, generate_knockout_after_league, bracket_view,
-    advance_knockout_round,
+    advance_knockout_round, eligible_teams_for_stage,
 )
 
 urlpatterns = [
     path('', FixtureListView.as_view(), name='fixture-list'),
+    path('eligible-teams/<uuid:tournament_id>/', eligible_teams_for_stage, name='eligible-teams'),
     path('auto-generate/', AutoGenerateFixturesView.as_view(), name='fixture-auto-generate'),
     path('manual/', ManualFixturesView.as_view(), name='fixture-manual'),
     path('league-status/<uuid:tournament_id>/', league_phase_status, name='league-status'),

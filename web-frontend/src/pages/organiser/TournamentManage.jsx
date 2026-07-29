@@ -391,6 +391,15 @@ export default function TournamentManage() {
   const [bulkFixtureStage, setBulkFixtureStage] = useState('league');
   const [bulkMatchups, setBulkMatchups] = useState([{ id: 1, team_a: '', team_b: '' }]);
 
+  // Eligible teams states for single and bulk manual modals
+  const [eligibleTeamsForModal, setEligibleTeamsForModal] = useState([]);
+  const [eligibleNoteForModal, setEligibleNoteForModal] = useState('');
+  const [loadingEligibleForModal, setLoadingEligibleForModal] = useState(false);
+
+  const [eligibleTeamsForBulk, setEligibleTeamsForBulk] = useState([]);
+  const [eligibleNoteForBulk, setEligibleNoteForBulk] = useState('');
+  const [loadingEligibleForBulk, setLoadingEligibleForBulk] = useState(false);
+
   // Tournament Awards state
   const [tournamentAwards, setTournamentAwards] = useState([]);
   const [awardInputs, setAwardInputs] = useState({}); // { award_type: { player_name, team_name } }
@@ -883,6 +892,93 @@ export default function TournamentManage() {
       fetchStats();
     }
   }, [id, activeTab]);
+
+  // Single fixture modal: Fetch eligible teams when stage changes
+  useEffect(() => {
+    const selectedStage = fixtureModal?.data?.stage;
+    if (!selectedStage) {
+      setEligibleTeamsForModal([]);
+      setEligibleNoteForModal('');
+      return;
+    }
+
+    const fetchEligible = async () => {
+      setLoadingEligibleForModal(true);
+      try {
+        const excludeId = fixtureModal?.data?.id || '';
+        const res = await api.get(
+          `/fixtures/eligible-teams/${id}/?stage=${selectedStage}&exclude_fixture_id=${excludeId}`
+        );
+        setEligibleTeamsForModal(res.data.teams);
+        setEligibleNoteForModal(res.data.note || '');
+
+        // If currently selected teams are no longer eligible for this stage, clear them
+        const eligibleIds = res.data.teams.map(t => t.id);
+        const currentTeamA = fixtureModal?.data?.team_a;
+        const currentTeamB = fixtureModal?.data?.team_b;
+        let updated = false;
+        let nextTeamA = currentTeamA;
+        let nextTeamB = currentTeamB;
+
+        if (currentTeamA && !eligibleIds.includes(currentTeamA)) {
+          nextTeamA = '';
+          updated = true;
+        }
+        if (currentTeamB && !eligibleIds.includes(currentTeamB)) {
+          nextTeamB = '';
+          updated = true;
+        }
+
+        if (updated) {
+          setFixtureModal(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              data: {
+                ...prev.data,
+                team_a: nextTeamA,
+                team_b: nextTeamB,
+              }
+            };
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load eligible teams:', err);
+        setEligibleTeamsForModal([]);
+      } finally {
+        setLoadingEligibleForModal(false);
+      }
+    };
+
+    fetchEligible();
+  }, [fixtureModal?.data?.stage, fixtureModal?.data?.id, id]);
+
+  // Bulk fixture modal: Fetch eligible teams when stage changes
+  useEffect(() => {
+    if (!showBulkFixtureModal || !bulkFixtureStage) {
+      setEligibleTeamsForBulk([]);
+      setEligibleNoteForBulk('');
+      return;
+    }
+
+    const fetchEligibleBulk = async () => {
+      setLoadingEligibleForBulk(true);
+      try {
+        const res = await api.get(
+          `/fixtures/eligible-teams/${id}/?stage=${bulkFixtureStage}`
+        );
+        setEligibleTeamsForBulk(res.data.teams);
+        setEligibleNoteForBulk(res.data.note || '');
+      } catch (err) {
+        console.error('Failed to load eligible teams for bulk:', err);
+        setEligibleTeamsForBulk([]);
+      } finally {
+        setLoadingEligibleForBulk(false);
+      }
+    };
+
+    fetchEligibleBulk();
+  }, [bulkFixtureStage, showBulkFixtureModal, id]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -1433,82 +1529,15 @@ export default function TournamentManage() {
       }
     }
 
-    // Rule 2: Previous stage qualification check (applies to both manual and auto)
+    // Rule 2: If league_knockout, they must be qualified from the league/group stage
     if (fixtureModal && fixtureModal.data && fixtureModal.data.stage) {
       const selectedStage = fixtureModal.data.stage;
-      const KO_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
-      
-      let stageIndex = KO_STAGE_ORDER.indexOf(selectedStage);
-      if (selectedStage === 'third_place') {
-        stageIndex = KO_STAGE_ORDER.indexOf('final'); // treat third place at same level as final
-      }
-
-      if (stageIndex > 0) {
-        // Find if there is a previous stage in the tournament that actually has matches
-        let prevStageWithMatches = null;
-        for (let idx = stageIndex - 1; idx >= 0; idx--) {
-          const checkStage = KO_STAGE_ORDER[idx];
-          const hasMatches = fixtures.some(f => f.stage === checkStage);
-          if (hasMatches) {
-            prevStageWithMatches = checkStage;
-            break;
-          }
-        }
-
-        if (prevStageWithMatches) {
-          // Check if all matches in the previous stage are completed
-          const prevMatches = fixtures.filter(f => f.stage === prevStageWithMatches);
-          const allCompleted = prevMatches.every(f => f.status === 'completed');
-          if (!allCompleted) {
-            // Previous stage is not finished yet, so no teams are eligible!
+      const isKOStage = selectedStage && !['league', 'group'].includes(selectedStage) && !selectedStage.startsWith('group_');
+      if (isKOStage && tournament.tournament_type === 'league_knockout') {
+        if (leagueStatus && leagueStatus.qualified_teams && leagueStatus.qualified_teams.length > 0) {
+          const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
+          if (!isQualifiedFromLeague) {
             return false;
-          }
-          
-          if (selectedStage === 'third_place') {
-            // For third place match, only the semi-final LOSERS are eligible
-            const losersOfPrevStage = prevMatches.map(f => {
-              if (f.winner) {
-                return f.winner === f.team_a ? f.team_b : f.team_a;
-              }
-              return null;
-            }).filter(Boolean);
-
-            if (!losersOfPrevStage.includes(t.id)) {
-              return false;
-            }
-          } else {
-            // For other knockout rounds, only the winners are eligible
-            const winnersOfPrevStage = prevMatches.map(f => {
-              if (f.winner) return f.winner;
-              if (Number(f.score_a) > Number(f.score_b)) return f.team_a;
-              if (Number(f.score_b) > Number(f.score_a)) return f.team_b;
-              return null;
-            }).filter(Boolean);
-
-            if (!winnersOfPrevStage.includes(t.id)) {
-              return false;
-            }
-          }
-        } else {
-          // If no previous knockout stage has matches, and the tournament is league_knockout
-          if (tournament.tournament_type === 'league_knockout') {
-            const LEAGUE_STAGES = ['league', 'group_a', 'group_b', 'group_c', 'group_d',
-                                   'group_e', 'group_f', 'group_g', 'group_h'];
-            const leagueMatches = fixtures.filter(f => 
-              LEAGUE_STAGES.includes(f.stage) || f.stage.startsWith('group_')
-            );
-            if (leagueMatches.length > 0) {
-              const allLeagueCompleted = leagueMatches.every(f => f.status === 'completed');
-              if (!allLeagueCompleted) {
-                return false;
-              }
-              if (leagueStatus && leagueStatus.qualified_teams) {
-                const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
-                if (!isQualifiedFromLeague) {
-                  return false;
-                }
-              }
-            }
           }
         }
       }
@@ -1570,6 +1599,8 @@ export default function TournamentManage() {
     return teams.filter(t => {
       const selectedStage = targetStage;
       const isKOStage = selectedStage && !['league', 'group'].includes(selectedStage) && !selectedStage.startsWith('group_');
+      
+      // Rule 1: Prevent scheduling a team twice in the same stage
       if (isKOStage) {
         const alreadyScheduledInStage = fixtures.some(f => 
           f.stage === selectedStage && 
@@ -1578,6 +1609,17 @@ export default function TournamentManage() {
         if (alreadyScheduledInStage) return false;
       }
 
+      // Rule 2: If league_knockout, they must be qualified from the league/group stage
+      if (isKOStage && tournament.tournament_type === 'league_knockout') {
+        if (leagueStatus && leagueStatus.qualified_teams && leagueStatus.qualified_teams.length > 0) {
+          const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
+          if (!isQualifiedFromLeague) {
+            return false;
+          }
+        }
+      }
+
+      // Rule 3: Previous stage qualification check (applies to both manual and auto)
       const KO_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
       let stageIndex = KO_STAGE_ORDER.indexOf(selectedStage);
       if (selectedStage === 'third_place') {
@@ -1597,56 +1639,41 @@ export default function TournamentManage() {
 
         if (prevStageWithMatches) {
           const prevMatches = fixtures.filter(f => f.stage === prevStageWithMatches);
-          const allCompleted = prevMatches.every(f => f.status === 'completed');
-          if (!allCompleted) {
-            return false;
-          }
           
           if (selectedStage === 'third_place') {
-            const losersOfPrevStage = prevMatches.map(f => {
-              if (f.winner) {
-                return f.winner === f.team_a ? f.team_b : f.team_a;
-              }
-              return null;
-            }).filter(Boolean);
-
-            if (!losersOfPrevStage.includes(t.id)) {
-              return false;
-            }
+            const teamPrevMatch = prevMatches.find(f => f.team_a === t.id || f.team_b === t.id);
+            if (!teamPrevMatch) return false;
+            
+            const isMatchComp = teamPrevMatch.status === 'completed';
+            const wId = teamPrevMatch.winner
+              ? String(teamPrevMatch.winner)
+              : Number(teamPrevMatch.score_a) > Number(teamPrevMatch.score_b)
+              ? String(teamPrevMatch.team_a)
+              : Number(teamPrevMatch.score_b) > Number(teamPrevMatch.score_a)
+              ? String(teamPrevMatch.team_b)
+              : null;
+            
+            const didLose = isMatchComp && wId && String(t.id) !== wId;
+            if (!didLose) return false;
           } else {
-            const winnersOfPrevStage = prevMatches.map(f => {
-              if (f.winner) return f.winner;
-              if (Number(f.score_a) > Number(f.score_b)) return f.team_a;
-              if (Number(f.score_b) > Number(f.score_a)) return f.team_b;
-              return null;
-            }).filter(Boolean);
-
-            if (!winnersOfPrevStage.includes(t.id)) {
-              return false;
-            }
-          }
-        } else {
-          if (tournament.tournament_type === 'league_knockout') {
-            const LEAGUE_STAGES = ['league', 'group_a', 'group_b', 'group_c', 'group_d',
-                                   'group_e', 'group_f', 'group_g', 'group_h'];
-            const leagueMatches = fixtures.filter(f => 
-              LEAGUE_STAGES.includes(f.stage) || f.stage.startsWith('group_')
-            );
-            if (leagueMatches.length > 0) {
-              const allLeagueCompleted = leagueMatches.every(f => f.status === 'completed');
-              if (!allLeagueCompleted) {
-                return false;
-              }
-              if (leagueStatus && leagueStatus.qualified_teams) {
-                const isQualifiedFromLeague = leagueStatus.qualified_teams.some(qt => qt.id === t.id);
-                if (!isQualifiedFromLeague) {
-                  return false;
-                }
-              }
-            }
+            const teamPrevMatch = prevMatches.find(f => f.team_a === t.id || f.team_b === t.id);
+            if (!teamPrevMatch) return false;
+            
+            const isMatchComp = teamPrevMatch.status === 'completed';
+            const wId = teamPrevMatch.winner
+              ? String(teamPrevMatch.winner)
+              : Number(teamPrevMatch.score_a) > Number(teamPrevMatch.score_b)
+              ? String(teamPrevMatch.team_a)
+              : Number(teamPrevMatch.score_b) > Number(teamPrevMatch.score_a)
+              ? String(teamPrevMatch.team_b)
+              : null;
+            
+            const didWin = isMatchComp && wId && String(t.id) === wId;
+            if (!didWin) return false;
           }
         }
       }
+
       return true;
     });
   };
@@ -1700,7 +1727,7 @@ export default function TournamentManage() {
   };
 
   const handleAutoPairRemaining = () => {
-    const eligible = getEligibleTeamsForStage(bulkFixtureStage);
+    const eligible = eligibleTeamsForBulk;
     
     const selectedTeamIds = new Set();
     bulkMatchups.forEach(m => {
@@ -1766,7 +1793,7 @@ export default function TournamentManage() {
           <h1 className="text-2xl font-black">{tournament.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider">
-              📍 {tournament.area_name}
+              🛡️ {tournament.area_name}
             </span>
             <span className="text-zinc-300 dark:text-zinc-700">·</span>
             
@@ -3324,6 +3351,20 @@ export default function TournamentManage() {
                 </select>
               </div>
 
+              {/* Info / warning note about eligibility */}
+              {eligibleNoteForBulk && (
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 text-xs font-semibold text-amber-800 dark:text-amber-400">
+                  ℹ️ {eligibleNoteForBulk}
+                </div>
+              )}
+
+              {/* No eligible teams at all yet */}
+              {bulkFixtureStage && !loadingEligibleForBulk && eligibleTeamsForBulk.length === 0 && !eligibleNoteForBulk && (
+                <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-3 text-xs font-semibold text-red-600 dark:text-red-400">
+                  ⚠️ All qualified teams have already been scheduled for this stage.
+                </div>
+              )}
+
               {/* Matchups list */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -3331,14 +3372,15 @@ export default function TournamentManage() {
                   <button
                     type="button"
                     onClick={handleAutoPairRemaining}
-                    className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                    disabled={loadingEligibleForBulk || eligibleTeamsForBulk.length < 2}
+                    className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     🤝 Auto Pair Remaining Teams
                   </button>
                 </div>
                 
                 {bulkMatchups.map((m, index) => {
-                  const eligible = getEligibleTeamsForStage(bulkFixtureStage);
+                  const eligible = eligibleTeamsForBulk;
                   const selectedA = m.team_a;
                   const selectedB = m.team_b;
 
@@ -3419,14 +3461,38 @@ export default function TournamentManage() {
               <button
                 type="button"
                 onClick={() => setShowBulkFixtureModal(false)}
-                className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 font-bold text-xs text-zinc-700 dark:text-zinc-300 transition-colors"
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #d1d5db',
+                  backgroundColor: '#ffffff',
+                  color: '#374151',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#ffffff'}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleBulkFixtureSubmit}
-                className="px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-xl font-bold text-xs transition-colors"
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#166534'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#15803d'}
               >
                 Generate Fixtures
               </button>
@@ -3664,8 +3730,9 @@ export default function TournamentManage() {
                     <div>
                       <label className="block text-xs font-bold text-[var(--txt2)] mb-1">Team A</label>
                       <select
-                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold disabled:opacity-50"
                         value={fixtureModal.data.team_a || ''}
+                        disabled={loadingEligibleForModal}
                         onChange={e => {
                           const newTeamA = e.target.value;
                           setFixtureModal({
@@ -3678,8 +3745,8 @@ export default function TournamentManage() {
                           });
                         }}
                       >
-                        <option value="">Select Team</option>
-                        {eligibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        <option value="">{loadingEligibleForModal ? 'Loading...' : 'Select Team'}</option>
+                        {eligibleTeamsForModal.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                     </div>
                     <div>
@@ -3687,14 +3754,15 @@ export default function TournamentManage() {
                         Team B {fixtureModal.data.team_a && groups?.length > 0 && '(Same Group)'}
                       </label>
                       <select
-                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs font-bold disabled:opacity-50"
                         value={fixtureModal.data.team_b || ''}
+                        disabled={loadingEligibleForModal}
                         onChange={e => setFixtureModal({ ...fixtureModal, data: { ...fixtureModal.data, team_b: e.target.value } })}
                       >
-                        <option value="">Select Team</option>
+                        <option value="">{loadingEligibleForModal ? 'Loading...' : 'Select Team'}</option>
                         {(() => {
                           const selectedTeamAId = fixtureModal.data.team_a;
-                          let availableTeamsForB = eligibleTeams.filter(t => t.id !== selectedTeamAId);
+                          let availableTeamsForB = eligibleTeamsForModal.filter(t => t.id !== selectedTeamAId);
 
                           // Auto-mode only: restrict Team B to same-round teams
                           if (!isManualKnockout && isKnockoutContext && selectedTeamAId) {
@@ -3717,6 +3785,20 @@ export default function TournamentManage() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Info / warning note about eligibility */}
+                  {eligibleNoteForModal && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 text-xs font-semibold text-amber-800 dark:text-amber-400">
+                      ℹ️ {eligibleNoteForModal}
+                    </div>
+                  )}
+
+                  {/* No eligible teams at all yet */}
+                  {fixtureModal.data.stage && !loadingEligibleForModal && eligibleTeamsForModal.length === 0 && !eligibleNoteForModal && (
+                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-3 text-xs font-semibold text-red-600 dark:text-red-400">
+                      ⚠️ All qualified teams have already been scheduled for this stage.
+                    </div>
+                  )}
 
                   {/* Duplicate Match Warning */}
                   {(() => {

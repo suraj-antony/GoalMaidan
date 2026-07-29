@@ -23,12 +23,12 @@ const MatchCard = ({ match, onEdit, editable }) => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '8px 10px',
+      padding: '6px 8px',
       backgroundColor: won ? '#f0fdf4' : lost ? '#f9fafb' : '#ffffff',
       transition: 'background-color 0.15s',
     }}>
       <span style={{
-        fontSize: '12.5px',
+        fontSize: '12px',
         fontWeight: won ? '700' : '500',
         color: team
           ? won ? '#15803d'
@@ -46,7 +46,7 @@ const MatchCard = ({ match, onEdit, editable }) => {
       </span>
       {isCompleted && (
         <span style={{
-          fontSize: '13px',
+          fontSize: '12px',
           fontWeight: won ? '700' : '500',
           color: won ? '#15803d' : lost ? '#9ca3af' : '#6b7280',
           minWidth: '18px',
@@ -55,7 +55,7 @@ const MatchCard = ({ match, onEdit, editable }) => {
         }}>
           {score}
           {penaltyScore !== null && penaltyScore !== undefined && (
-            <span style={{ fontSize: '11px', fontWeight: '500', marginLeft: '3px', color: '#9ca3af' }}>
+            <span style={{ fontSize: '10px', fontWeight: '500', marginLeft: '3px', color: '#9ca3af' }}>
               ({penaltyScore})
             </span>
           )}
@@ -68,7 +68,7 @@ const MatchCard = ({ match, onEdit, editable }) => {
     <div
       onClick={() => editable && onEdit(match)}
       style={{
-        width: '210px',
+        width: '180px',
         borderRadius: '10px',
         border: '1.5px solid #e5e7eb',
         overflow: 'hidden',
@@ -143,12 +143,12 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
     <div style={{ overflowX: 'auto', padding: '20px 8px' }}>
       <div style={{ display: 'flex', alignItems: 'stretch', minWidth: 'fit-content' }}>
         {data.rounds.map((round, roundIdx) => {
-          const gap = Math.pow(2, roundIdx) * 24 + (Math.pow(2, roundIdx) - 1) * 76;
+          const gap = Math.pow(2, roundIdx) * 16 + (Math.pow(2, roundIdx) - 1) * 60;
           return (
             <div key={round.stage} style={{
               display: 'flex',
               flexDirection: 'column',
-              padding: '0 38px',
+              padding: '0 24px',
               position: 'relative',
             }}>
               <div style={{
@@ -165,40 +165,160 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
                 justifyContent: 'space-around',
                 flex: 1,
                 gap: `${gap}px`,
+                position: 'relative',
               }}>
-                {round.matches.map((match, matchIdx) => (
-                  <div key={match.id} style={{ position: 'relative' }}>
-                    <MatchCard
-                      match={match}
-                      onEdit={onEditMatch}
-                      editable={editable && match.team_a && match.team_b}
-                    />
-
-                    {/* Connector line to next round */}
-                    {roundIdx < data.rounds.length - 1 && (
-                      <>
-                        <div className="bracket-connector-h" style={{
+                {round.stage === 'final' ? (
+                  <>
+                    {/* Centered Final Match */}
+                    {(() => {
+                      const finalMatch = round.matches.find(m => m.stage === 'final');
+                      if (!finalMatch) return null;
+                      return (
+                        <div style={{
                           position: 'absolute',
                           top: '50%',
-                          right: '-38px',
-                          width: '38px',
+                          transform: 'translateY(-50%)',
+                          left: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                        }}>
+                          <div style={{ position: 'relative' }}>
+                            <MatchCard
+                              match={finalMatch}
+                              onEdit={onEditMatch}
+                              editable={editable && finalMatch.team_a && finalMatch.team_b}
+                            />
+                            {roundIdx > 0 && (
+                              <div className="bracket-connector-h-left" style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '-24px',
+                                width: '24px',
+                                height: '2px',
+                                backgroundColor: '#d1d5db',
+                              }} />
+                            )}
+                            <div className="bracket-connector-h-right-final" style={{
+                              position: 'absolute',
+                              top: '50%',
+                              right: '-24px',
+                              width: '24px',
+                              height: '2px',
+                              backgroundColor: '#d1d5db',
+                            }} />
+                          </div>
+                          <div style={{ marginTop: '6px' }}>
+                            <span style={{
+                              fontSize: '9px',
+                              fontWeight: '800',
+                              backgroundColor: '#fef3c7',
+                              color: '#d97706',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              textTransform: 'uppercase',
+                            }}>
+                              Final
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Bottom Bronze Final Match */}
+                    {(() => {
+                      const thirdMatch = round.matches.find(m => m.stage === 'third_place');
+                      if (!thirdMatch) return null;
+                      return (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '24px',
+                          left: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                        }}>
+                          <div style={{ position: 'relative' }}>
+                            <MatchCard
+                              match={thirdMatch}
+                              onEdit={onEditMatch}
+                              editable={editable && thirdMatch.team_a && thirdMatch.team_b}
+                            />
+                          </div>
+                          <div style={{ marginTop: '6px' }}>
+                            <span style={{
+                              fontSize: '9px',
+                              fontWeight: '800',
+                              backgroundColor: '#dbeafe',
+                              color: '#2563eb',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              textTransform: 'uppercase',
+                            }}>
+                              Bronze-Final
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  round.matches.map((match, matchIdx) => (
+                    <div key={match.id} style={{ position: 'relative' }}>
+                      <MatchCard
+                        match={match}
+                        onEdit={onEditMatch}
+                        editable={editable && match.team_a && match.team_b}
+                      />
+
+                      {/* Left connector line coming from previous round's vertical line */}
+                      {roundIdx > 0 && (
+                        <div className="bracket-connector-h-left" style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '-24px',
+                          width: '24px',
                           height: '2px',
                           backgroundColor: '#d1d5db',
                         }} />
-                        {matchIdx % 2 === 0 && (
-                          <div className="bracket-connector-v" style={{
+                      )}
+
+                      {/* Connector line to next round */}
+                      {roundIdx < data.rounds.length - 1 && (
+                        <>
+                          <div className="bracket-connector-h" style={{
                             position: 'absolute',
                             top: '50%',
-                            right: '-38px',
-                            width: '2px',
-                            height: `${gap + 46}px`,
+                            right: '-24px',
+                            width: '24px',
+                            height: '2px',
                             backgroundColor: '#d1d5db',
                           }} />
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
+                          {matchIdx % 2 === 0 && (
+                            <>
+                              <div className="bracket-connector-v" style={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: '-24px',
+                                width: '2px',
+                                height: `${gap + 60}px`,
+                                backgroundColor: '#d1d5db',
+                              }} />
+                              <div className="bracket-connector-h-mid" style={{
+                                position: 'absolute',
+                                top: `calc(50% + ${(gap + 60) / 2}px)`,
+                                right: '-48px',
+                                width: '24px',
+                                height: '2px',
+                                backgroundColor: '#d1d5db',
+                              }} />
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           );
@@ -210,9 +330,18 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '0 38px',
-          minWidth: '180px',
+          padding: '0 24px',
+          minWidth: '150px',
+          position: 'relative',
         }}>
+          <div className="bracket-connector-h-left" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '-24px',
+            width: '24px',
+            height: '2px',
+            backgroundColor: '#d1d5db',
+          }} />
           <div style={{
             width: '90px', height: '90px',
             borderRadius: '50%',

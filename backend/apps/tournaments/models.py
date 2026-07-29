@@ -39,7 +39,7 @@ class Tournament(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organiser = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tournaments')
     name = models.CharField(max_length=200)
-    area_name = models.CharField(max_length=200, default="")
+    area_name = models.CharField(max_length=200, default="", blank=True)
     ground_type = models.CharField(max_length=10, choices=GROUND_TYPE_CHOICES)
     age_category = models.CharField(max_length=10, choices=AGE_CATEGORY_CHOICES)
     tournament_type = models.CharField(max_length=20, choices=TOURNAMENT_TYPE_CHOICES)
