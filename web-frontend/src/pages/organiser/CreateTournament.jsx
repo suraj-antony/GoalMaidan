@@ -529,18 +529,35 @@ export default function CreateTournament() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Page Title */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--txt)]">
-          {isEdit ? 'Edit' : 'Create'} <span className="text-green-700 dark:text-green-400">Tournament</span>
-        </h1>
-        <p className="text-[var(--txt2)] mt-2 max-w-md mx-auto">
-          {isEdit
-            ? 'Update the details, format, verification rules, stats, and configurations of your tournament.'
-            : 'Set up a new football league, knockout, or mixed format tournament in minutes.'}
-        </p>
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      width: '100%',
+      position: 'relative',
+      backgroundImage: `url('https://static.vecteezy.com/system/resources/previews/039/098/917/non_2x/ai-generated-african-children-playing-soccer-at-village-street-photo.jpg')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed',
+      padding: '24px 0 80px',
+    }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.75) 100%)',
+      }} />
+
+      <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+        {/* Page Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            {isEdit ? 'Edit' : 'Create'} <span className="text-green-400">Tournament</span>
+          </h1>
+          <p className="text-zinc-200 mt-2 max-w-md mx-auto">
+            {isEdit
+              ? 'Update the details, format, verification rules, stats, and configurations of your tournament.'
+              : 'Set up a new football league, knockout, or mixed format tournament in minutes.'}
+          </p>
+        </div>
 
       {/* ── Professional Step Progress Bar ── */}
       {(() => {
@@ -660,10 +677,10 @@ export default function CreateTournament() {
                       fontSize: '11px',
                       fontWeight: isCurrent ? '700' : '500',
                       color: isCompleted
-                        ? '#15803d'
+                        ? '#22c55e'
                         : isCurrent
-                        ? '#111827'
-                        : '#9ca3af',
+                        ? '#ffffff'
+                        : '#cbd5e1',
                       textAlign: 'center',
                       lineHeight: '1.3',
                       maxWidth: '70px',
@@ -681,7 +698,20 @@ export default function CreateTournament() {
       })()}
 
       {/* Form Container */}
-      <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-md p-6 sm:p-8 transition-all">
+      <div 
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+          '--txt': '#ffffff',
+          '--txt2': '#cbd5e1',
+          '--border': 'rgba(255, 255, 255, 0.15)',
+          '--bg': '#1e293b',
+        }}
+        className="rounded-2xl p-6 sm:p-8 transition-all text-white"
+      >
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-sm font-semibold flex items-center gap-2">
             <span>⚠️</span>
@@ -719,7 +749,7 @@ export default function CreateTournament() {
                 display: 'block',
                 fontSize: '14px',
                 fontWeight: '700',
-                color: '#111827',
+                color: 'var(--txt)',
                 marginBottom: '8px',
               }}>
                 Ground Type <span style={{ color: '#ef4444' }}>*</span>
@@ -803,10 +833,11 @@ export default function CreateTournament() {
                 className={inputCls(fieldErrors.age_category)}
                 value={formData.age_category}
                 onChange={e => updateField('age_category', e.target.value)}
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               >
-                <option value="" disabled>Select Age Category</option>
+                <option value="" disabled style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>Select Age Category</option>
                 {AGE_CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  <option key={cat.value} value={cat.value} style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>{cat.label}</option>
                 ))}
               </select>
               {fieldErrors.age_category && <p className="mt-1.5 text-xs font-bold text-red-500">{fieldErrors.age_category}</p>}
@@ -841,7 +872,7 @@ export default function CreateTournament() {
                 display: 'block',
                 fontSize: '14px',
                 fontWeight: '700',
-                color: '#111827',
+                color: 'var(--txt)',
                 marginBottom: '12px',
               }}>
                 Tournament Type <span style={{ color: '#ef4444' }}>*</span>
@@ -981,7 +1012,7 @@ export default function CreateTournament() {
 
             {/* League Sub-options */}
             {(formData.tournament_type === 'league' || formData.tournament_type === 'league_knockout') && (
-              <div className="p-5 bg-zinc-50 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)] space-y-4">
+              <div className="p-5 bg-white/5 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)] space-y-4">
                 <h4 className="font-bold text-sm text-[var(--txt)]">League Settings</h4>
                 {/* Home & Away toggle */}
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -1008,7 +1039,7 @@ export default function CreateTournament() {
               <div className={`p-5 rounded-2xl border space-y-4 transition-all duration-200 ${
                 formData.third_place_option 
                   ? 'bg-green-50/10 border-green-200 dark:border-green-900/60' 
-                  : 'bg-zinc-50 dark:bg-zinc-900/60 border-[var(--border)]'
+                  : 'bg-white/5 dark:bg-zinc-900/60 border-[var(--border)]'
               }`}>
                 <h4 className="font-bold text-sm text-[var(--txt)] flex items-center justify-between">
                   <span>Knockout Settings</span>
@@ -1097,7 +1128,7 @@ export default function CreateTournament() {
                   display: 'block',
                   fontSize: '14px',
                   fontWeight: '700',
-                  color: '#111827',
+                  color: 'var(--txt)',
                   marginBottom: '10px',
                 }}>
                   League + Knockout Style <span style={{ color: '#ef4444' }}>*</span>
@@ -1122,7 +1153,7 @@ export default function CreateTournament() {
 
                 {/* Multi-group controls */}
                 {formData.league_knockout_style === 'multi_group' && (
-                  <div className="mt-4 p-5 bg-zinc-50 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)] space-y-4">
+                  <div className="mt-4 p-5 bg-white/5 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)] space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-[var(--txt)] mb-1.5">Number of Groups</label>
@@ -1152,7 +1183,7 @@ export default function CreateTournament() {
 
                 {/* Single-group qualifiers */}
                 {formData.league_knockout_style === 'single_group' && (
-                  <div className="mt-4 p-5 bg-zinc-50 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)]">
+                  <div className="mt-4 p-5 bg-white/5 dark:bg-zinc-900/60 rounded-2xl border border-[var(--border)]">
                     <label className="block text-xs font-bold text-[var(--txt)] mb-1.5">
                       Teams qualifying for knockout
                     </label>
@@ -1175,7 +1206,7 @@ export default function CreateTournament() {
                 display: 'block',
                 fontSize: '14px',
                 fontWeight: '700',
-                color: '#111827',
+                color: 'var(--txt)',
                 marginBottom: '10px',
               }}>
                 Fixture Generation Mode <span style={{ color: '#ef4444' }}>*</span>
@@ -1228,7 +1259,7 @@ export default function CreateTournament() {
                   <Shield size={20} />
                   <h3 className="font-bold text-sm">Age Verification Options</h3>
                 </div>
-                <label className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors cursor-pointer">
+                <label className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border)] hover:bg-white/5 dark:hover:bg-zinc-900/40 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
                     className="w-5 h-5 rounded text-green-600 focus:ring-green-600"
@@ -1238,7 +1269,7 @@ export default function CreateTournament() {
                   <span className="text-sm font-bold text-[var(--txt)]">Require age verification for players</span>
                 </label>
                 {formData.age_verification_required && (
-                  <div className="pl-8 space-y-3 p-4 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
+                  <div className="pl-8 space-y-3 p-4 bg-white/5 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
                     <p className="text-xs font-bold text-[var(--txt2)] mb-2">Accepted Documents (select at least one):</p>
                     {[
                       { field: 'accept_aadhaar',            label: 'Accept Aadhaar card' },
@@ -1277,7 +1308,7 @@ export default function CreateTournament() {
                 display: 'block',
                 fontSize: '14px',
                 fontWeight: '700',
-                color: '#111827',
+                color: 'var(--txt)',
                 marginBottom: '10px',
               }}>
                 Access Type
@@ -1405,7 +1436,7 @@ export default function CreateTournament() {
             </div>
 
             {/* Public Stats */}
-            <label className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors cursor-pointer">
+            <label className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border)] hover:bg-white/5 dark:hover:bg-zinc-900/40 transition-colors cursor-pointer">
               <input
                 type="checkbox"
                 className="w-5 h-5 rounded text-green-600 focus:ring-green-600"
@@ -1431,7 +1462,7 @@ export default function CreateTournament() {
 
             {/* Awards Cards */}
             <div style={{ marginBottom: '24px' }}>
-              <p style={{ fontSize: '14px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--txt)', marginBottom: '4px' }}>
                 Choose which individual awards you want to give in this tournament
               </p>
               <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '14px' }}>
@@ -1695,7 +1726,7 @@ export default function CreateTournament() {
 
             {/* Stats Track & Show Table */}
             <div style={{ marginBottom: '24px' }}>
-              <p style={{ fontSize: '14px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--txt)', marginBottom: '4px' }}>
                 Match Stats to Track & Show
               </p>
               <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '14px' }}>
@@ -1860,7 +1891,7 @@ export default function CreateTournament() {
                 { label: 'Public Stats',       value: formData.public_stats ? 'Yes ✅' : 'No ❌' },
                 { label: 'Age Verification',   value: formData.age_verification_required ? 'Required ✅' : 'Not Required ❌' },
               ].map(item => (
-                <div key={item.label} className="p-4 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] shadow-sm">
+                <div key={item.label} className="p-4 bg-white/5 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)] shadow-sm">
                   <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider block">{item.label}</span>
                   <span className="text-sm font-extrabold text-[var(--txt)] mt-1 block">{item.value}</span>
                 </div>
@@ -1878,7 +1909,7 @@ export default function CreateTournament() {
 
             {/* Team names summary */}
             {formData.team_names.some(n => n.trim()) && (
-              <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
+              <div className="p-4 bg-white/5 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
                 <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider block mb-2">Teams Registered</span>
                 <div className="flex flex-wrap gap-2">
                   {formData.team_names.filter(n => n.trim()).map((name, i) => (
@@ -1892,7 +1923,7 @@ export default function CreateTournament() {
 
             {/* Document types accepted */}
             {formData.age_verification_required && (
-              <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
+              <div className="p-4 bg-white/5 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
                 <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider block mb-2">Accepted Documents</span>
                 <div className="flex flex-wrap gap-2">
                   {formData.accept_aadhaar            && <span className="bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-900/40 text-xs px-3 py-1 rounded-lg font-bold">Aadhaar Card</span>}
@@ -1903,7 +1934,7 @@ export default function CreateTournament() {
             )}
 
             {/* Enabled Awards */}
-            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
+            <div className="p-4 bg-white/5 dark:bg-zinc-900/60 rounded-xl border border-[var(--border)]">
               <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider block mb-1">Enabled Awards</span>
               <p className="text-sm font-bold text-[var(--txt)] mt-1">
                 {Object.keys(formData.awards_config)
@@ -2051,6 +2082,7 @@ export default function CreateTournament() {
           )}
 
         </div>
+      </div>
       </div>
     </div>
   );

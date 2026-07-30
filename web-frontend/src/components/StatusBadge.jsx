@@ -2,34 +2,47 @@ export const StatusBadge = ({ status }) => {
   const config = {
     scheduled: {
       label: 'Scheduled',
-      className: 'bg-gray-100 text-gray-600 border border-gray-300',
+      style: { backgroundColor: 'rgba(113, 113, 122, 0.2)', color: '#d4d4d8', borderColor: 'rgba(113, 113, 122, 0.3)' },
     },
     live: {
       label: '🔴 Live',
-      className: 'bg-red-100 text-red-700 border border-red-400 animate-pulse',
+      style: { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' },
+      animate: true,
     },
     completed: {
       label: '✅ Completed',
-      className: 'bg-green-100 text-green-700 border border-green-400',
+      style: { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#86efac', borderColor: 'rgba(34, 197, 94, 0.3)' },
     },
     draft: {
       label: 'Draft',
-      className: 'bg-gray-100 text-gray-500 border border-gray-300',
+      style: { backgroundColor: 'rgba(113, 113, 122, 0.25)', color: '#e4e4e7', borderColor: 'rgba(113, 113, 122, 0.3)' },
     },
     active: {
       label: '● Active',
-      className: 'bg-green-100 text-green-700 border border-green-500 font-semibold',
+      style: { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.3)' },
     },
     completed_tournament: {
       label: '✓ Completed',
-      className: 'bg-blue-100 text-blue-700 border border-blue-300',
+      style: { backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', borderColor: 'rgba(59, 130, 246, 0.3)' },
     },
   };
 
   const c = config[status?.toLowerCase()] || config.scheduled;
 
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${c.className}`}>
+    <span 
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 10px',
+        borderRadius: '9999px',
+        fontSize: '11px',
+        fontWeight: '700',
+        border: '1.5px solid',
+        ...c.style
+      }}
+      className={c.animate ? 'animate-pulse' : ''}
+    >
       {c.label}
     </span>
   );

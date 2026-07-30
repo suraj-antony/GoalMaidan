@@ -135,225 +135,283 @@ export default function OrganiserDashboard() {
   const completedTournaments = tournaments.filter(t => t.status === 'completed').length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative">
-      
-      {/* Toast Notification */}
-      {toast && (
+    <div style={{
+      minHeight: '100vh',
+      width: '100%',
+      position: 'relative',
+      backgroundImage: `url('https://images.pexels.com/photos/28735311/pexels-photo-28735311.jpeg')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed',
+    }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.7) 100%)',
+      }} />
+
+      <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative z-10">
+        
+        {/* Toast Notification */}
+        {toast && (
+          <div 
+            className="fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white"
+            style={{ backgroundColor: toast.type === 'success' ? '#15803d' : '#dc2626' }}
+          >
+            <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+            <span>{toast.message}</span>
+          </div>
+        )}
+
+        {/* Header */}
         <div 
-          className="fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-lg font-semibold text-sm z-50 animate-fade-in flex items-center gap-2 text-white"
-          style={{ backgroundColor: toast.type === 'success' ? '#15803d' : '#dc2626' }}
+          style={{
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+          }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 p-6 rounded-2xl"
         >
-          <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 bg-gradient-to-r from-emerald-850 to-emerald-900/30 p-6 rounded-2xl border border-[var(--border)] shadow-sm">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--txt)]">
-            Organiser <span className="text-emerald-600 dark:text-emerald-400">Dashboard</span>
-          </h1>
-          <p className="text-[var(--txt2)] mt-1.5 font-medium">
-            Welcome back, <span className="font-semibold text-emerald-600 dark:text-emerald-400">{user?.name}</span>! Manage your tournaments and view progress.
-          </p>
-        </div>
-        <Link
-          to="/dashboard/create"
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all hover:scale-[1.02] active:scale-[0.98] self-start sm:self-center"
-        >
-          <Plus size={20} />
-          {t('create_tournament')}
-        </Link>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {[
-          { label: 'Total Tournaments', value: totalTournaments, icon: Trophy, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/35' },
-          { label: 'Live Now', value: liveTournaments, icon: Activity, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/35' },
-          { label: 'Completed', value: completedTournaments, icon: Award, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/35' },
-        ].map(stat => (
-          <div key={stat.label} className={`bg-[var(--card)] rounded-2xl p-6 border ${stat.color.split(' ').slice(2).join(' ')} shadow-sm flex items-center gap-5 transition-transform hover:translate-y-[-2px]`}>
-            <div className={`p-4 rounded-xl ${stat.color.split(' ').slice(0, 2).join(' ')}`}>
-              <stat.icon size={26} />
-            </div>
-            <div>
-              <p className="text-3xl font-extrabold text-[var(--txt)]">{stat.value}</p>
-              <p className="text-sm font-semibold text-[var(--txt2)] mt-0.5">{stat.label}</p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              Organiser <span className="text-emerald-400">Dashboard</span>
+            </h1>
+            <p className="text-zinc-200 mt-1.5 font-medium">
+              Welcome back, <span className="font-semibold text-emerald-400">{user?.name}</span>! Manage your tournaments and view progress.
+            </p>
           </div>
-        ))}
-      </div>
-
-      {/* Tournament List Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-[var(--txt)] flex items-center gap-2">
-          <span>My Tournaments</span>
-          <span className="text-sm font-semibold bg-emerald-550/10 text-emerald-600 px-2.5 py-0.5 rounded-full">
-            {totalTournaments}
-          </span>
-        </h2>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/40 rounded-xl text-sm font-medium">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-[var(--txt2)] bg-[var(--card)] rounded-2xl border border-[var(--border)]">
-          <div className="animate-spin text-4xl mb-4 text-emerald-600">⚽</div>
-          <p className="font-semibold">Loading tournaments...</p>
-        </div>
-      ) : tournaments.length === 0 ? (
-        <div className="text-center py-20 bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)] shadow-sm px-6">
-          <div className="w-16 h-16 mx-auto bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-5 border border-emerald-100 dark:border-emerald-900/30">
-            <Trophy size={32} />
-          </div>
-          <p className="text-xl font-extrabold text-[var(--txt)] mb-2">No tournaments yet</p>
-          <p className="text-[var(--txt2)] max-w-sm mx-auto mb-6">Create your first football tournament and start managing teams, schedules, and matches!</p>
-          <Link to="/dashboard/create" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-md">
-            <Plus size={18} />
-            Create Tournament
+          <Link
+            to="/dashboard/create"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/10 transition-all hover:scale-[1.02] active:scale-[0.98] self-start sm:self-center"
+          >
+            <Plus size={20} />
+            {t('create_tournament')}
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {tournaments.map(tournament => {
-            return (
-              <div
-                key={tournament.id}
-                onClick={() => navigate(`/organiser/tournament/${tournament.id}/manage`)}
-                className="flex flex-col justify-between p-6 bg-[var(--card)] rounded-2xl border border-[var(--border)] hover:border-emerald-500/50 hover:shadow-lg transition-all group relative overflow-hidden cursor-pointer"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
-                
-                <div>
-                  {/* Title & Status */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <h3 className="font-extrabold text-lg text-[var(--txt)] group-hover:text-emerald-600 transition-colors leading-snug">
-                      {tournament.name}
-                    </h3>
-                    
-                    <div className="flex items-center gap-2" ref={(el) => menuRefs.current[tournament.id] = el}>
-                      {/* Status badge */}
-                      <StatusBadge status={tournament.status} />
 
-                      {/* 3-dot menu */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(prev => prev === tournament.id ? null : tournament.id);
-                          }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700
-                                     hover:bg-gray-100 transition-colors duration-150"
-                          aria-label="Tournament options"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor"
-                               viewBox="0 0 24 24">
-                            <circle cx="12" cy="5" r="1.5"/>
-                            <circle cx="12" cy="12" r="1.5"/>
-                            <circle cx="12" cy="19" r="1.5"/>
-                          </svg>
-                        </button>
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[
+            { label: 'Total Tournaments', value: totalTournaments, icon: Trophy, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/35' },
+            { label: 'Live Now', value: liveTournaments, icon: Activity, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-amber-900/35' },
+            { label: 'Completed', value: completedTournaments, icon: Award, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-amber-900/35' },
+          ].map(stat => (
+            <div 
+              key={stat.label} 
+              style={{
+                backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+              }}
+              className="rounded-2xl p-6 flex items-center gap-5 transition-all duration-300 hover:-translate-y-1 hover:bg-white/5 hover:border-white/10"
+            >
+              <div className={`p-4 rounded-xl bg-white/10 ${stat.color.split(' ').slice(0, 2).join(' ')}`}>
+                <stat.icon size={26} />
+              </div>
+              <div>
+                <p className="text-3xl font-extrabold text-white">{stat.value}</p>
+                <p className="text-sm font-semibold text-zinc-300 mt-0.5">{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
-                        {/* Dropdown menu */}
-                        {openMenuId === tournament.id && (
-                          <div className="absolute right-0 top-8 z-50 w-44 bg-white rounded-xl shadow-xl
-                                          border border-gray-200 py-1 overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/organiser/tournament/${tournament.id}/manage`);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5
-                                         text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              ⚙️ <span>Manage</span>
-                            </button>
+        {/* Tournament List Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <span>My Tournaments</span>
+            <span className="text-sm font-semibold bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full">
+              {totalTournaments}
+            </span>
+          </h2>
+        </div>
 
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/organiser/tournament/${tournament.id}/edit`);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5
-                                         text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              ✏️ <span>Edit Tournament</span>
-                            </button>
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/40 rounded-xl text-sm font-medium">
+            {error}
+          </div>
+        )}
 
-                            <div className="border-t border-gray-100 my-1" />
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                setDeleteTarget(tournament);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5
-                                         text-sm text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              🗑️ <span>Delete Tournament</span>
-                            </button>
-                          </div>
-                        )}
+        {loading ? (
+          <div 
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+            className="flex flex-col items-center justify-center py-24 text-zinc-300 rounded-2xl"
+          >
+            <div className="animate-spin text-4xl mb-4 text-emerald-400">⚽</div>
+            <p className="font-semibold">Loading tournaments...</p>
+          </div>
+        ) : tournaments.length === 0 ? (
+          <div 
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+            className="text-center py-20 rounded-2xl px-6"
+          >
+            <div className="w-16 h-16 mx-auto bg-white/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-5 border border-white/10">
+              <Trophy size={32} />
+            </div>
+            <p className="text-xl font-extrabold text-white mb-2">No tournaments yet</p>
+            <p className="text-zinc-300 max-w-sm mx-auto mb-6">Create your first football tournament and start managing teams, schedules, and matches!</p>
+            <Link to="/dashboard/create" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-md">
+              <Plus size={18} />
+              Create Tournament
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {tournaments.map(tournament => {
+              return (
+                <div
+                  key={tournament.id}
+                  onClick={() => navigate(`/organiser/tournament/${tournament.id}/manage`)}
+                  style={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+                  }}
+                  className="flex flex-col justify-between p-6 rounded-2xl hover:border-emerald-500/55 hover:bg-white/5 hover:scale-[1.01] transition-all duration-350 group relative overflow-hidden cursor-pointer"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
+                  
+                  <div>
+                    {/* Title & Status */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <h3 className="font-extrabold text-lg text-white group-hover:text-emerald-400 transition-colors leading-snug">
+                        {tournament.name}
+                      </h3>
+                      
+                      <div className="flex items-center gap-2" ref={(el) => menuRefs.current[tournament.id] = el}>
+                        {/* Status badge */}
+                        <StatusBadge status={tournament.status} />
+  
+                        {/* 3-dot menu */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(prev => prev === tournament.id ? null : tournament.id);
+                            }}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200
+                                       hover:bg-white/10 transition-colors duration-150"
+                            aria-label="Tournament options"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor"
+                                 viewBox="0 0 24 24">
+                              <circle cx="12" cy="5" r="1.5"/>
+                              <circle cx="12" cy="12" r="1.5"/>
+                              <circle cx="12" cy="19" r="1.5"/>
+                            </svg>
+                          </button>
+  
+                          {/* Dropdown menu */}
+                          {openMenuId === tournament.id && (
+                            <div className="absolute right-0 top-8 z-50 w-44 bg-zinc-900 rounded-xl shadow-xl
+                                            border border-zinc-700 py-1 overflow-hidden text-left">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  navigate(`/organiser/tournament/${tournament.id}/manage`);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2.5
+                                           text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                              >
+                                ⚙️ <span>Manage</span>
+                              </button>
+  
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  navigate(`/organiser/tournament/${tournament.id}/edit`);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2.5
+                                           text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                              >
+                                ✏️ <span>Edit Tournament</span>
+                              </button>
+  
+                              <div className="border-t border-zinc-800 my-1" />
+  
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setDeleteTarget(tournament);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2.5
+                                           text-sm text-red-400 hover:bg-red-950/40 transition-colors"
+                              >
+                                🗑️ <span>Delete Tournament</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
+  
+                    {/* Area */}
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+                      📍 {tournament.area_name || user?.area_name || 'Tournament Ground'}
+                    </p>
+  
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      <span className="px-3 py-1 bg-white/10 text-zinc-200 text-xs font-bold rounded-lg border border-white/10 shadow-sm">
+                        {tournament.ground_type}
+                      </span>
+                      <span className="px-3 py-1 bg-white/10 text-zinc-200 text-xs font-bold rounded-lg border border-white/10 shadow-sm">
+                        {ageLabels[tournament.age_category] || tournament.age_category}
+                      </span>
+                      <span className="px-3 py-1 bg-white/10 text-zinc-200 text-xs font-bold rounded-lg border border-white/10 shadow-sm">
+                        {typeLabels[tournament.tournament_type] || tournament.tournament_type}
+                      </span>
+                    </div>
                   </div>
-
-                  {/* Area */}
-                  <p className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider mb-4">
-                    📍 {tournament.area_name || user?.area_name || 'Tournament Ground'}
-                  </p>
-
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    <span className="px-3 py-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-700/60 shadow-sm">
-                      {tournament.ground_type}
-                    </span>
-                    <span className="px-3 py-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-700/60 shadow-sm">
-                      {ageLabels[tournament.age_category] || tournament.age_category}
-                    </span>
-                    <span className="px-3 py-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-700/60 shadow-sm">
-                      {typeLabels[tournament.tournament_type] || tournament.tournament_type}
-                    </span>
+  
+                  {/* Footer info: Teams and Manage button */}
+                  <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-auto">
+                    <div className="flex items-center gap-1.5">
+                      <Users size={16} className="text-emerald-400" />
+                      <span className="text-sm font-bold text-white">{tournament.team_count || 0}</span>
+                      <span className="text-sm text-zinc-300">teams registered</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/organiser/tournament/${tournament.id}/manage`);
+                      }}
+                      className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 hover:underline"
+                    >
+                      <span>Manage</span>
+                      <span>›</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Footer info: Teams and Manage button */}
-                <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-auto">
-                  <div className="flex items-center gap-1.5">
-                    <Users size={16} className="text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-sm font-bold text-[var(--txt)]">{tournament.team_count || 0}</span>
-                    <span className="text-sm text-[var(--txt2)]">teams registered</span>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      navigate(`/organiser/tournament/${tournament.id}/manage`);
-                    }}
-                    className="text-xs font-bold text-green-700 hover:text-green-900 flex items-center gap-0.5 hover:underline"
-                  >
-                    <span>Manage</span>
-                    <span>›</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
       {/* Activation Confirmation Modal */}
       {confirmingTournament && (
@@ -536,6 +594,7 @@ export default function OrganiserDashboard() {
         </div>
       )}
 
+      </div>
     </div>
   );
 }
