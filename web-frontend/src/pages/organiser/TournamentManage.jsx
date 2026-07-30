@@ -1028,6 +1028,10 @@ export default function TournamentManage() {
     if (!['knockout', 'league_knockout'].includes(tournament.tournament_type)) return false;
     if (fixtures.length === 0) return false;
 
+    // Hide if final or bronze-final fixtures already exist
+    const hasFinalOrBronzeFinal = fixtures.some(f => ['final', 'third_place'].includes(f.stage));
+    if (hasFinalOrBronzeFinal) return false;
+
     const KO_STAGES = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final'];
 
     // For pure knockout, ALL fixtures are knockout fixtures
@@ -1782,25 +1786,35 @@ export default function TournamentManage() {
       )}
 
       {/* Top Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="p-2 border border-[var(--border)] rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-black">{tournament.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider">
-              🛡️ {tournament.area_name}
-            </span>
-            <span className="text-zinc-300 dark:text-zinc-700">·</span>
-            
-            {/* Status Badge */}
-            <StatusBadge status={tournament.status} />
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 border border-[var(--border)] rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black">{tournament.name}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider">
+                🛡️ {tournament.area_name}
+              </span>
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+              
+              {/* Status Badge */}
+              <StatusBadge status={tournament.status} />
+            </div>
           </div>
         </div>
+
+        <button
+          onClick={() => navigate(`/dashboard/edit/${id}`)}
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-bold text-xs rounded-xl shadow-sm transition-all"
+        >
+          <span>✏️</span>
+          <span>Edit Setup</span>
+        </button>
       </div>
 
       {/* Tabs list */}
@@ -2667,7 +2681,7 @@ export default function TournamentManage() {
                   </button>
                 )}
 
-                {tournament.fixture_generation_mode === 'manual' && (
+                {tournament.fixture_generation_mode === 'manual' && !fixtures.some(f => ['final', 'third_place'].includes(f.stage)) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2693,25 +2707,27 @@ export default function TournamentManage() {
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league' } })}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '12px',
-                    backgroundColor: tournament.fixture_generation_mode === 'auto' ? '#ffffff' : '#15803d',
-                    color: tournament.fixture_generation_mode === 'auto' ? '#111827' : '#ffffff',
-                    border: tournament.fixture_generation_mode === 'auto' ? '1.5px solid #d1d5db' : 'none',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Plus size={14} /> Add Fixture
-                </button>
+                {!fixtures.some(f => ['final', 'third_place'].includes(f.stage)) && (
+                  <button
+                    type="button"
+                    onClick={() => setFixtureModal({ mode: 'add', data: { team_a: '', team_b: '', match_date: '', match_time: '', venue: '', stage: tournament.tournament_type === 'knockout' ? getStartingKnockoutStage(teams.length) : 'league' } })}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: tournament.fixture_generation_mode === 'auto' ? '#ffffff' : '#15803d',
+                      color: tournament.fixture_generation_mode === 'auto' ? '#111827' : '#ffffff',
+                      border: tournament.fixture_generation_mode === 'auto' ? '1.5px solid #d1d5db' : 'none',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Plus size={14} /> Add Fixture
+                  </button>
+                )}
               </div>
             </div>
           )}

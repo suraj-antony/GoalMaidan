@@ -1455,6 +1455,46 @@ def _get_previous_knockout_stage(stage):
     return KNOCKOUT_STAGE_ORDER[idx - 1]
 
 
+def _get_starting_knockout_stage(tournament):
+    from apps.teams.models import Team
+    if tournament.tournament_type == 'knockout':
+        num_teams = Team.objects.filter(tournament=tournament).count()
+    elif tournament.tournament_type == 'league_knockout':
+        style = getattr(tournament, 'league_knockout_style', 'single_group') or 'single_group'
+        if style == 'single_group':
+            num_teams = getattr(tournament, 'knockout_qualifiers', 4) or 4
+        else:
+            num_groups = getattr(tournament, 'num_groups', 4) or 4
+            qualifiers_per_group = getattr(tournament, 'qualifiers_per_group', 2) or 2
+            num_teams = num_groups * qualifiers_per_group
+    else:
+        num_teams = 0
+
+    if num_teams <= 0:
+        return None
+
+    # Find the next power of 2
+    size = 2
+    while size < num_teams:
+        size *= 2
+
+    # Map size to starting stage
+    if size <= 2:
+        return 'final'
+    elif size <= 4:
+        return 'semi'
+    elif size <= 8:
+        return 'quarter'
+    elif size <= 16:
+        return 'round_of_16'
+    elif size <= 32:
+        return 'round_of_32'
+    elif size <= 64:
+        return 'round_of_64'
+    else:
+        return 'round_of_64'
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def eligible_teams_for_stage(request, tournament_id):
@@ -1516,11 +1556,28 @@ def eligible_teams_for_stage(request, tournament_id):
 
     # ── Case 2: Knockout stage ──
     previous_stage = _get_previous_knockout_stage(stage)
+    starting_stage = _get_starting_knockout_stage(tournament)
 
-    if previous_stage is None:
+    if previous_stage is None or stage == starting_stage:
         # This IS the first knockout round — eligible teams are all teams
         # entered into the knockout bracket, minus ones already placed
         # into a fixture in this same stage.
+        if tournament.tournament_type == 'league_knockout':
+            status_data = get_league_status(tournament)
+            if status_data['total_league'] > 0:
+                if not status_data['league_complete']:
+                    return Response({
+                        'stage': stage,
+                        'teams': [],
+                        'note': 'League phase is not finished yet.',
+                    })
+                qualified_teams = status_data['qualified_teams']
+                eligible = [
+                    {'id': str(t['id']), 'name': t['name']}
+                    for t in qualified_teams if str(t['id']) not in already_assigned_ids
+                ]
+                return Response({'stage': stage, 'teams': eligible, 'note': None})
+
         all_teams = Team.objects.filter(tournament=tournament)
         eligible = [
             {'id': str(t.id), 'name': t.name}

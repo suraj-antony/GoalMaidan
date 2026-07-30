@@ -278,6 +278,19 @@ export default function OrganiserDashboard() {
                               ⚙️ <span>Manage</span>
                             </button>
 
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                navigate(`/dashboard/edit/${tournament.id}`);
+                              }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5
+                                         text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              ✏️ <span>Edit Setup</span>
+                            </button>
+
                             <div className="border-t border-gray-100 my-1" />
 
                             <button

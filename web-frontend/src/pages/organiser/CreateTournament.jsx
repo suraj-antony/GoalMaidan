@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { ChevronRight, ChevronLeft, Check, Lock, Info, Shield, Zap, PenLine } from 'lucide-react';
@@ -10,7 +10,7 @@ const STEPS = [
   'Fixture Setup',
   'Verification',
   'Awards & Stats',
-  'Review & Create',
+  'Review',
 ];
 
 const GROUND_TYPES = ['3s', '5s', '6s', '7s', '9s', '11s'];
@@ -82,6 +82,8 @@ function knockoutMatchCount(n) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CreateTournament() {
+  const { id } = useParams();
+  const isEdit = !!id;
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -133,6 +135,59 @@ export default function CreateTournament() {
       man_of_the_match:   { track: true,  show: true },
     },
   });
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchTournament = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/tournaments/${id}/`);
+        const data = res.data;
+        
+        // Map the loaded awards_config and stats_config with sensible fallbacks
+        const loadedAwards = data.awards_config || {};
+        const loadedStats = data.stats_config || {};
+
+        setFormData(prev => ({
+          ...prev,
+          name: data.name || '',
+          area_name: data.area_name || '',
+          ground_type: data.ground_type || '',
+          age_category: data.age_category || '',
+          tournament_type: data.tournament_type || '',
+          home_and_away: !!data.home_and_away,
+          third_place_option: !!data.third_place_option,
+          knockout_qualifiers: data.knockout_qualifiers ?? 4,
+          max_teams: data.max_teams ?? 8,
+          team_names: data.team_names_list || [],
+          fixture_generation_mode: data.fixture_generation_mode || 'auto',
+          league_knockout_style: data.league_knockout_style || 'single_group',
+          num_groups: data.num_groups ?? 4,
+          qualifiers_per_group: data.qualifiers_per_group ?? 2,
+          age_verification_required: !!data.age_verification_required,
+          accept_aadhaar: !!data.accept_aadhaar,
+          accept_school_certificate: !!data.accept_school_certificate,
+          accept_birth_certificate: !!data.accept_birth_certificate,
+          is_private: !!data.is_private,
+          public_stats: !!data.public_stats,
+          awards_config: {
+            ...prev.awards_config,
+            ...loadedAwards,
+          },
+          stats_config: {
+            ...prev.stats_config,
+            ...loadedStats,
+          },
+        }));
+      } catch (err) {
+        console.error('Failed to load tournament:', err);
+        setError('Failed to load tournament details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTournament();
+  }, [id]);
 
   // ── computed fixture estimate ─────────────────────────────────────────────
 
@@ -305,8 +360,13 @@ export default function CreateTournament() {
     delete payload.team_names;
 
     try {
-      const response = await api.post('/tournaments/', payload);
-      navigate(`/organiser/tournament/${response.data.id}`);
+      if (isEdit) {
+        await api.put(`/tournaments/${id}/`, payload);
+        navigate(`/dashboard`);
+      } else {
+        const response = await api.post('/tournaments/', payload);
+        navigate(`/organiser/tournament/${response.data.id}`);
+      }
     } catch (err) {
       const errorData = err.response?.data;
       if (typeof errorData === 'object' && errorData !== null) {
@@ -474,10 +534,12 @@ export default function CreateTournament() {
       {/* Page Title */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-extrabold tracking-tight text-[var(--txt)]">
-          Create <span className="text-green-700 dark:text-green-400">Tournament</span>
+          {isEdit ? 'Edit' : 'Create'} <span className="text-green-700 dark:text-green-400">Tournament</span>
         </h1>
         <p className="text-[var(--txt2)] mt-2 max-w-md mx-auto">
-          Set up a new football league, knockout, or mixed format tournament in minutes.
+          {isEdit
+            ? 'Update the details, format, verification rules, stats, and configurations of your tournament.'
+            : 'Set up a new football league, knockout, or mixed format tournament in minutes.'}
         </p>
       </div>
 
@@ -1980,11 +2042,11 @@ export default function CreateTournament() {
                     <path d="M4 12a8 8 0 018-8" stroke="#ffffff" strokeWidth="4"
                           strokeLinecap="round"/>
                   </svg>
-                  <span style={{ color: '#ffffff' }}>Creating...</span>
+                  <span style={{ color: '#ffffff' }}>{isEdit ? 'Saving...' : 'Creating...'}</span>
                 </>
               ) : (
                 <>
-                  <span style={{ color: '#ffffff' }}>✅ Create Tournament</span>
+                  <span style={{ color: '#ffffff' }}>{isEdit ? '💾 Save Changes' : '✅ Create Tournament'}</span>
                 </>
               )}
             </button>

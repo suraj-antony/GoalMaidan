@@ -67,6 +67,11 @@ function App() {
               <CreateTournament />
             </ProtectedRoute>
           } />
+          <Route path="/dashboard/edit/:id" element={
+            <ProtectedRoute allowedRoles={['organiser']}>
+              <CreateTournament />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard/manage/:id" element={
             <ProtectedRoute allowedRoles={['organiser']}>
               <ManageTournament />
