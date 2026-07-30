@@ -5,7 +5,7 @@ from .views import (
     ViewerDashboardView, TournamentActivateView, TournamentCheckCompleteView,
     TournamentReopenView, TournamentGroupsListView, TournamentGroupAssignView,
     TournamentGroupGenerateView, TournamentGroupFixturesView,
-    TournamentGenerateFixturesView,
+    TournamentGenerateFixturesView, TournamentEditInfoView,
 )
 
 urlpatterns = [
@@ -14,6 +14,7 @@ urlpatterns = [
     path('search/', TournamentSearchView.as_view(), name='tournament-search'),
     path('viewer-dashboard/', ViewerDashboardView.as_view(), name='viewer-dashboard'),
     path('<uuid:pk>/', TournamentDetailView.as_view(), name='tournament-detail'),
+    path('<uuid:pk>/edit-info/', TournamentEditInfoView.as_view(), name='tournament-edit-info'),
     path('<uuid:pk>/publish/', TournamentPublishView.as_view(), name='tournament-publish'),
     path('<uuid:pk>/complete/', TournamentCompleteView.as_view(), name='tournament-complete'),
     path('<uuid:pk>/activate/', TournamentActivateView.as_view(), name='tournament-activate'),

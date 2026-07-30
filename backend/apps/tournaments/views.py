@@ -68,12 +68,105 @@ class MyTournamentsView(APIView):
         serializer = TournamentSerializer(tournaments, many=True)
         return Response(serializer.data)
 
+FORMAT_LOCKED_FIELDS = [
+    'tournament_type',
+    'league_knockout_style',
+    'group_config',
+    'home_and_away',
+    'knockout_qualifiers',
+    'num_groups',
+    'qualifiers_per_group',
+]
+
+
+def has_completed_matches(tournament):
+    """Returns True if this tournament has at least one completed fixture."""
+    return tournament.fixtures.filter(status='completed').exists()
+
+
+class TournamentEditInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        tournament = get_object_or_404(Tournament, pk=pk)
+
+        if tournament.organiser != request.user:
+            return Response({'error': 'Permission denied.'}, status=403)
+
+        locked = has_completed_matches(tournament)
+        completed_count = tournament.fixtures.filter(status='completed').count()
+        total_count = tournament.fixtures.count()
+
+        serializer = TournamentSerializer(tournament)
+        data = serializer.data
+        data['format_locked'] = locked
+        data['completed_matches_count'] = completed_count
+        data['total_matches_count'] = total_count
+
+        return Response(data)
+
+
 class TournamentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TournamentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Tournament.objects.filter(organiser=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        return self._handle_update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self._handle_update(request, *args, **kwargs)
+
+    def _handle_update(self, request, *args, **kwargs):
+        tournament = self.get_object()
+
+        if tournament.organiser != request.user:
+            return Response({'error': 'Permission denied.'}, status=403)
+
+        data = request.data
+        locked = has_completed_matches(tournament)
+
+        # Check if the request is trying to change any format-locked field
+        attempted_format_change = False
+        for field in FORMAT_LOCKED_FIELDS:
+            if field in data:
+                current_value = getattr(tournament, field, None)
+                new_value = data.get(field)
+                # Compare as strings to avoid type mismatches (e.g. JSON list vs list)
+                if str(current_value) != str(new_value):
+                    attempted_format_change = True
+                    break
+
+        if attempted_format_change and locked:
+            return Response({
+                'error': 'Tournament format cannot be changed after matches have started. '
+                         'At least one match has already been completed.',
+                'locked_fields': FORMAT_LOCKED_FIELDS,
+            }, status=400)
+
+        # If format IS changing (and allowed), delete existing fixtures
+        format_is_changing = attempted_format_change and not locked
+
+        serializer = self.get_serializer(tournament, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        deleted_fixture_count = 0
+        if format_is_changing:
+            deleted_fixture_count = tournament.fixtures.count()
+            tournament.fixtures.all().delete()
+            tournament.fixtures_generated = False
+            if hasattr(tournament, 'group_config'):
+                tournament.group_config = tournament.group_config if 'group_config' in data else tournament.group_config
+            tournament.save(update_fields=['fixtures_generated'])
+
+        response_data = serializer.data
+        response_data['format_changed'] = format_is_changing
+        response_data['deleted_fixtures'] = deleted_fixture_count
+
+        return Response(response_data)
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -355,6 +448,27 @@ class TournamentGroupAssignView(APIView):
 
         if tournament.status != 'draft':
             return Response({'error': 'Cannot change group assignment after tournament is activated.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        assignments = request.data.get('assignments')
+        if assignments is not None:
+            if not isinstance(assignments, list):
+                return Response({'error': 'Assignments must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            team_ids = [a.get('team_id') for a in assignments if a.get('team_id')]
+            teams_map = {str(t.id): t for t in Team.objects.filter(id__in=team_ids, tournament=tournament)}
+            
+            for team in teams_map.values():
+                for g in TournamentGroup.objects.filter(tournament=tournament):
+                    g.teams.remove(team)
+            
+            for a in assignments:
+                t_id = str(a.get('team_id'))
+                g_name = a.get('group_name')
+                if t_id in teams_map and g_name:
+                    group, _ = TournamentGroup.objects.get_or_create(tournament=tournament, name=g_name)
+                    group.teams.add(teams_map[t_id])
+            
+            return Response({'message': 'Bulk groups assigned successfully.'})
 
         team_id = request.data.get('team_id')
         group_name = request.data.get('group_name')

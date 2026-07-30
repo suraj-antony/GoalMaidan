@@ -354,6 +354,16 @@ const getStartingKnockoutStage = (numTeams) => {
 export default function TournamentManage() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const getTeamGroup = (teamId) => {
+    if (!teamId || !groups || groups.length === 0) return null;
+    return groups.find(group => 
+      (group.teams || []).some(t => {
+        const tId = typeof t === 'object' ? t?.id : t;
+        return tId && String(tId).toLowerCase() === String(teamId).toLowerCase();
+      })
+    );
+  };
   
   // Page state
   const [tournament, setTournament] = useState(null);
@@ -411,6 +421,8 @@ export default function TournamentManage() {
   const [newTeam, setNewTeam] = useState({ name: '', manager_name: '', manager_phone: '' });
   const [bulkTeamsText, setBulkTeamsText] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkAssignments, setBulkAssignments] = useState({}); // { [teamId]: groupName }
 
   // Player management sub-states
   const [expandedTeamId, setExpandedTeamId] = useState(null);
@@ -1310,6 +1322,41 @@ export default function TournamentManage() {
     }
   };
 
+  const startBulkAssignment = () => {
+    const initialAssignments = {};
+    groups.forEach(group => {
+      (group.teams || []).forEach(team => {
+        initialAssignments[team.id] = group.name;
+      });
+    });
+    teams.forEach(team => {
+      if (!initialAssignments[team.id]) {
+        initialAssignments[team.id] = '';
+      }
+    });
+    setBulkAssignments(initialAssignments);
+    setShowBulkAssign(true);
+  };
+
+  const handleBulkAssignGroups = async () => {
+    const assignmentsPayload = Object.entries(bulkAssignments)
+      .map(([teamId, groupName]) => ({
+        team_id: teamId,
+        group_name: groupName,
+      }))
+      .filter(a => a.group_name);
+
+    try {
+      await api.post(`/tournaments/${id}/groups/assign/`, { assignments: assignmentsPayload });
+      showToast('All group assignments saved successfully.', 'success');
+      setShowBulkAssign(false);
+      const groupsRes = await api.get(`/tournaments/${id}/groups/`);
+      setGroups(groupsRes.data);
+    } catch (err) {
+      showToast('Failed to save bulk group assignments.', 'error');
+    }
+  };
+
   // ── FIXTURES MANAGEMENT ─────────────────────────────────────────────────────
 
   const handleSaveFixture = async (e) => {
@@ -1809,7 +1856,7 @@ export default function TournamentManage() {
         </div>
 
         <button
-          onClick={() => navigate(`/dashboard/edit/${id}`)}
+          onClick={() => navigate(`/organiser/tournament/${id}/edit`)}
           className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-bold text-xs rounded-xl shadow-sm transition-all"
         >
           <span>✏️</span>
@@ -2079,6 +2126,36 @@ export default function TournamentManage() {
                     <RotateCcw size={16} /> Reopen Tournament
                   </button>
                 )}
+                
+                <button
+                  type="button"
+                  onClick={() => navigate(`/organiser/tournament/${tournament.id}/edit`)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid #15803d',
+                    backgroundColor: '#ffffff',
+                    color: '#15803d',
+                    fontWeight: '800',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    marginTop: '12px',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = '#f0fdf4';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                  }}
+                >
+                  ✏️ Edit Tournament Details
+                </button>
               </div>
 
             </div>
@@ -2238,7 +2315,8 @@ export default function TournamentManage() {
                                     <>
                                       <button
                                         onClick={() => handleSaveInlineEdit(team.id)}
-                                        className="px-2.5 py-1 rounded bg-green-700 text-white text-xs font-bold"
+                                        style={{ backgroundColor: '#15803d', color: '#ffffff' }}
+                                        className="px-2.5 py-1 rounded text-xs font-bold cursor-pointer hover:bg-green-800"
                                       >
                                         Save
                                       </button>
@@ -2466,7 +2544,8 @@ export default function TournamentManage() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-green-700 hover:bg-green-800 text-white font-extrabold text-xs shadow"
+                    style={{ backgroundColor: '#15803d', color: '#ffffff' }}
+                    className="w-full py-2.5 rounded-xl font-extrabold text-xs shadow cursor-pointer hover:bg-green-800"
                   >
                     Save Team
                   </button>
@@ -2506,100 +2585,257 @@ export default function TournamentManage() {
       {/* ═══════════════════════════════════════════════════════════════════
           TAB 3 — GROUPS (Multi-group only)
       ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'groups' && isMultiGroup && (
-        <div className="space-y-6 animate-fade-in">
-          
-          {/* Actions panel */}
-          {!isCompleted && (
-            <div className="flex justify-between items-center gap-4 bg-zinc-50 dark:bg-zinc-800/30 border border-[var(--border)] p-4 rounded-2xl">
-              <span className="text-xs font-bold text-[var(--txt2)]">Assign teams into groups, then click Generate Group Fixtures below to build schedule.</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleRegenerateGroups}
-                  className="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-bold flex items-center gap-1 bg-[var(--bg)] cursor-pointer"
-                >
-                  <Shuffle size={14} /> Regenerate Groups
-                </button>
-                <button
-                  onClick={handleGenerateGroupFixtures}
-                  className="px-4 py-2 rounded-xl bg-green-700 hover:bg-green-800 text-white text-xs font-bold cursor-pointer"
-                >
-                  Generate Group Fixtures
-                </button>
+      {activeTab === 'groups' && isMultiGroup && (() => {
+        const unassignedTeams = teams.filter(team => {
+          return !groups.some(group => (group.teams || []).some(gt => gt.id === team.id));
+        });
+        return (
+          <div className="space-y-6 animate-fade-in">
+            
+            {/* Actions panel */}
+            {!isCompleted && (
+              <div className="flex justify-between items-center gap-4 bg-zinc-50 dark:bg-zinc-800/30 border border-[var(--border)] p-4 rounded-2xl">
+                <span className="text-xs font-bold text-[var(--txt2)]">Assign teams into groups, then click Generate Group Fixtures below to build schedule.</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleRegenerateGroups}
+                    className="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-bold flex items-center gap-1 bg-[var(--bg)] cursor-pointer"
+                  >
+                    <Shuffle size={14} /> Regenerate Groups
+                  </button>
+                  <button
+                    onClick={startBulkAssignment}
+                    style={{ backgroundColor: '#ffffff', color: '#15803d', border: '2px solid #15803d' }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-green-50"
+                  >
+                    ✏️ Bulk Assign
+                  </button>
+                  <button
+                    onClick={() => navigate(`/organiser/tournament/${id}/edit`)}
+                    className="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-bold flex items-center gap-1 bg-[var(--bg)] cursor-pointer"
+                  >
+                    ⚙️ Edit Group Setup
+                  </button>
+                  <button
+                    onClick={handleGenerateGroupFixtures}
+                    disabled={unassignedTeams.length > 0}
+                    style={{
+                      backgroundColor: unassignedTeams.length > 0 ? '#a1a1aa' : '#15803d',
+                      color: '#ffffff',
+                      opacity: unassignedTeams.length > 0 ? 0.6 : 1,
+                      cursor: unassignedTeams.length > 0 ? 'not-allowed' : 'pointer'
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                    title={unassignedTeams.length > 0 ? 'Assign all teams to groups first' : 'Generate Group Fixtures'}
+                  >
+                    Generate Group Fixtures
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Groups Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {groups.map(group => {
-              const nameKey = (group.name || '').replace(/Group\s+/i, '').trim().toUpperCase();
-              const groupColors = {
-                A: {
-                  bg: 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20',
-                  border: 'border-l-4 border-emerald-500',
-                  text: 'text-emerald-800 dark:text-emerald-400',
-                },
-                B: {
-                  bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
-                  border: 'border-l-4 border-blue-500',
-                  text: 'text-blue-800 dark:text-blue-400',
-                },
-                C: {
-                  bg: 'bg-gradient-to-r from-purple-50 to-fuchsia-50 dark:from-purple-950/20 dark:to-fuchsia-950/20',
-                  border: 'border-l-4 border-purple-500',
-                  text: 'text-purple-800 dark:text-purple-400',
-                },
-                D: {
-                  bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20',
-                  border: 'border-l-4 border-amber-500',
-                  text: 'text-amber-800 dark:text-amber-400',
-                },
-              };
-              const style = groupColors[nameKey] || {
-                bg: 'bg-gradient-to-r from-zinc-50 to-neutral-50 dark:from-zinc-950/10 dark:to-neutral-950/10',
-                border: 'border-l-4 border-zinc-500',
-                text: 'text-zinc-800 dark:text-zinc-400',
-              };
-
-              return (
-                <div key={group.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between">
+            {/* Bulk Assignment Panel */}
+            {showBulkAssign ? (
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="flex justify-between items-center border-b border-[var(--border)] pb-3">
                   <div>
-                    <div className={`px-4 py-2.5 border-b border-[var(--border)] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 ${style.bg} ${style.border} ${style.text}`}>
-                      Group {group.name}
-                    </div>
-                    <div className="p-3 space-y-1.5">
-                      {group.teams.length === 0 ? (
-                        <p className="text-xs text-[var(--txt2)] font-semibold italic py-4 text-center">No teams assigned yet.</p>
-                      ) : (
-                        group.teams.map((team, tIdx) => (
-                          <div key={team.id} className="flex items-center justify-between text-xs font-bold bg-zinc-50/50 dark:bg-zinc-800/10 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 px-2.5 py-1.5 rounded-xl border border-[var(--border)] transition-colors">
-                            <span className="truncate pr-2">{tIdx + 1}. {team.name}</span>
-                            
-                            {/* Move Group selector */}
-                            {!isCompleted && (
-                              <select
-                                className="px-1.5 py-0.5 border border-[var(--border)] bg-[var(--card)] rounded text-[10px] font-extrabold outline-none focus:border-green-600 cursor-pointer shrink-0"
-                                value={group.name}
-                                onChange={e => handleAssignGroup(team.id, e.target.value)}
-                              >
-                                {groups.map(g => (
-                                  <option key={g.name} value={g.name}>{g.name}</option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
+                    <h3 className="font-extrabold text-sm flex items-center gap-1.5">
+                      ✏️ Bulk Assign Teams to Groups
+                    </h3>
+                    <p className="text-xs text-[var(--txt2)] font-semibold mt-0.5">
+                      Assign all teams to their groups in one go. Click Save when done.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkAssign(false)}
+                      className="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-bold bg-[var(--bg)] cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkAssignGroups}
+                      style={{ backgroundColor: '#15803d', color: '#ffffff' }}
+                      className="px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-green-800 cursor-pointer"
+                    >
+                      Save All Assignments
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
 
-        </div>
-      )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto p-1">
+                  {teams.map(team => {
+                    const currentVal = bulkAssignments[team.id] || '';
+                    return (
+                      <div
+                        key={team.id}
+                        className="flex items-center justify-between p-3.5 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-xl border border-[var(--border)] shadow-sm"
+                      >
+                        <span className="font-bold text-xs truncate pr-3">{team.name}</span>
+                        <select
+                          className="px-2.5 py-1.5 border border-[var(--border)] bg-[var(--card)] rounded-lg text-xs font-extrabold outline-none focus:border-green-600 cursor-pointer"
+                          value={currentVal}
+                          onChange={e => setBulkAssignments(prev => ({ ...prev, [team.id]: e.target.value }))}
+                        >
+                          <option value="">-- Unassigned --</option>
+                          {groups.map(g => (
+                            <option key={g.name} value={g.name}>Group {g.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Unassigned Teams Section */}
+                {unassignedTeams.length > 0 && (
+                  <div className="bg-[var(--card)] border border-amber-200 dark:border-amber-900/60 bg-amber-50/5 p-5 rounded-2xl shadow-sm space-y-3">
+                    <h3 className="font-extrabold text-sm text-amber-800 dark:text-amber-400 flex items-center gap-1.5">
+                      <span>⚠️</span> Unassigned Teams ({unassignedTeams.length})
+                    </h3>
+                    <p className="text-xs text-[var(--txt2)] font-semibold">
+                      Please assign these teams to their respective groups before generating fixtures.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {unassignedTeams.map(team => (
+                        <div
+                          key={team.id}
+                          className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-[var(--border)] px-3 py-2 rounded-xl text-xs font-bold shadow-sm animate-fade-in"
+                        >
+                          <span>{team.name}</span>
+                          <select
+                            style={{
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none',
+                              backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2315803d' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                              backgroundRepeat: 'no-repeat',
+                              backgroundPosition: 'right 6px center',
+                              backgroundSize: '8px',
+                              paddingRight: '18px',
+                              paddingLeft: '8px',
+                              paddingTop: '3px',
+                              paddingBottom: '3px',
+                              borderRadius: '6px',
+                              border: '1px solid #15803d',
+                              fontSize: '10px',
+                              fontWeight: '800',
+                              backgroundColor: '#f0fdf4',
+                              color: '#15803d',
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                            value=""
+                            onChange={e => handleAssignGroup(team.id, e.target.value)}
+                          >
+                            <option value="" disabled>Assign to...</option>
+                            {groups.map(g => (
+                              <option key={g.name} value={g.name}>Group {g.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Groups Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {groups.map(group => {
+                    const nameKey = (group.name || '').replace(/Group\s+/i, '').trim().toUpperCase();
+                    const groupColors = {
+                      A: {
+                        bg: 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20',
+                        border: 'border-l-4 border-emerald-500',
+                        text: 'text-emerald-800 dark:text-emerald-400',
+                      },
+                      B: {
+                        bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
+                        border: 'border-l-4 border-blue-500',
+                        text: 'text-blue-800 dark:text-blue-400',
+                      },
+                      C: {
+                        bg: 'bg-gradient-to-r from-purple-50 to-fuchsia-50 dark:from-purple-950/20 dark:to-fuchsia-950/20',
+                        border: 'border-l-4 border-purple-500',
+                        text: 'text-purple-800 dark:text-purple-400',
+                      },
+                      D: {
+                        bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20',
+                        border: 'border-l-4 border-amber-500',
+                        text: 'text-amber-800 dark:text-amber-400',
+                      },
+                    };
+                    const style = groupColors[nameKey] || {
+                      bg: 'bg-gradient-to-r from-zinc-50 to-neutral-50 dark:from-zinc-950/10 dark:to-neutral-950/10',
+                      border: 'border-l-4 border-zinc-500',
+                      text: 'text-zinc-800 dark:text-zinc-400',
+                    };
+
+                    return (
+                      <div key={group.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className={`px-4 py-2.5 border-b border-[var(--border)] font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 ${style.bg} ${style.border} ${style.text}`}>
+                            Group {group.name}
+                          </div>
+                          <div className="p-3 space-y-1.5">
+                            {group.teams.length === 0 ? (
+                              <p className="text-xs text-[var(--txt2)] font-semibold italic py-4 text-center">No teams assigned yet.</p>
+                            ) : (
+                              group.teams.map((team, tIdx) => (
+                                <div key={team.id} className="flex items-center justify-between text-xs font-bold bg-zinc-50/50 dark:bg-zinc-800/10 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 px-2.5 py-1.5 rounded-xl border border-[var(--border)] transition-colors">
+                                  <span className="truncate pr-2">{tIdx + 1}. {team.name}</span>
+                                  
+                                  {/* Move Group selector */}
+                                  {!isCompleted && (
+                                    <select
+                                      style={{
+                                        appearance: 'none',
+                                        WebkitAppearance: 'none',
+                                        MozAppearance: 'none',
+                                        backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2315803d' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 6px center',
+                                        backgroundSize: '8px',
+                                        paddingRight: '18px',
+                                        paddingLeft: '8px',
+                                        paddingTop: '3.5px',
+                                        paddingBottom: '3.5px',
+                                        borderRadius: '6px',
+                                        border: '1.5px solid #15803d',
+                                        fontSize: '10px',
+                                        fontWeight: '800',
+                                        backgroundColor: '#f0fdf4',
+                                        color: '#15803d',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                      }}
+                                      value={group.name}
+                                      onChange={e => handleAssignGroup(team.id, e.target.value)}
+                                    >
+                                      {groups.map(g => (
+                                        <option key={g.name} value={g.name}>{g.name}</option>
+                                      ))}
+                                    </select>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+          </div>
+        );
+      })()}
 
       {/* ═══════════════════════════════════════════════════════════════════
           TAB 4 — FIXTURES (Manually add/edit/delete fixtures)
@@ -3130,7 +3366,9 @@ export default function TournamentManage() {
             <div className="text-center py-12 text-gray-400">Loading stats...</div>
           ) : (
             <>
-              <StandingsSection table={table} groups={groups} tournament={tournament} />
+              {tournament?.tournament_type !== 'knockout' && (
+                <StandingsSection table={table} groups={groups} tournament={tournament} />
+              )}
               
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <TopScorersTable scorers={scorers} />
@@ -3410,7 +3648,49 @@ export default function TournamentManage() {
                   });
 
                   const availableTeamsA = eligible.filter(t => !otherSelectedIds.has(t.id));
-                  const availableTeamsB = eligible.filter(t => !otherSelectedIds.has(t.id) && t.id !== selectedA);
+                  let availableTeamsB = eligible.filter(t => !otherSelectedIds.has(t.id) && t.id !== selectedA);
+
+                  if (selectedA && bulkFixtureStage === 'league') {
+                    const teamAGroup = getTeamGroup(selectedA);
+                    if (teamAGroup) {
+                      const groupTeamIds = (teamAGroup.teams || []).map(t => typeof t === 'object' ? t.id : t);
+                      availableTeamsB = availableTeamsB.filter(t => {
+                        return groupTeamIds.some(gtId => String(gtId).toLowerCase() === String(t.id).toLowerCase());
+                      });
+                    }
+                  }
+
+                  if (selectedA) {
+                    const maxAllowed = tournament.home_and_away ? 2 : 1;
+                    const matchupCounts = {};
+
+                    // Count matches in bulk matchups list
+                    bulkMatchups.forEach(m => {
+                      if ((m.team_a === selectedA && m.team_b) || (m.team_b === selectedA && m.team_a)) {
+                        const partner = m.team_a === selectedA ? m.team_b : m.team_a;
+                        if (partner) {
+                          const pId = String(partner).toLowerCase();
+                          matchupCounts[pId] = (matchupCounts[pId] || 0) + 1;
+                        }
+                      }
+                    });
+
+                    // Count matches in existing fixtures
+                    fixtures.forEach(f => {
+                      if (f.stage === bulkFixtureStage && (f.team_a === selectedA || f.team_b === selectedA)) {
+                        const partner = f.team_a === selectedA ? f.team_b : f.team_a;
+                        if (partner) {
+                          const pId = String(partner).toLowerCase();
+                          matchupCounts[pId] = (matchupCounts[pId] || 0) + 1;
+                        }
+                      }
+                    });
+
+                    availableTeamsB = availableTeamsB.filter(t => {
+                      const count = matchupCounts[String(t.id).toLowerCase()] || 0;
+                      return count < maxAllowed;
+                    });
+                  }
 
                   return (
                     <div key={m.id} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 rounded-xl">
@@ -3786,15 +4066,40 @@ export default function TournamentManage() {
                             availableTeamsForB = availableTeamsForB.filter(t => getWins(t.id) === selectedTeamAWins);
                           }
 
-                          if (selectedTeamAId && groups && groups.length > 0) {
-                            const teamAGroup = groups.find(g =>
-                              (g.teams || []).some(t => (typeof t === 'object' ? t.id === selectedTeamAId : t === selectedTeamAId))
-                            );
-                            if (teamAGroup) {
-                              const groupTeamIds = (teamAGroup.teams || []).map(t => (typeof t === 'object' ? t.id : t));
-                              availableTeamsForB = availableTeamsForB.filter(t => groupTeamIds.includes(t.id));
-                            }
-                          }
+                           const currentStage = fixtureModal.data.stage || '';
+                           const isGroupStage = currentStage === 'league' || currentStage.startsWith('group_');
+                           if (isGroupStage && selectedTeamAId) {
+                             const teamAGroup = getTeamGroup(selectedTeamAId);
+                             if (teamAGroup) {
+                               const groupTeamIds = (teamAGroup.teams || []).map(t => typeof t === 'object' ? t.id : t);
+                               availableTeamsForB = availableTeamsForB.filter(t => {
+                                 return groupTeamIds.some(gtId => String(gtId).toLowerCase() === String(t.id).toLowerCase());
+                               });
+                             }
+                           }
+
+                           if (selectedTeamAId) {
+                             const maxAllowed = tournament.home_and_away ? 2 : 1;
+                             const matchupCounts = {};
+
+                             fixtures.forEach(f => {
+                               // Exclude the current fixture being edited from counting against the limit
+                               if (fixtureModal.mode === 'edit' && f.id === fixtureModal.data.id) return;
+
+                               if (f.stage === currentStage && (f.team_a === selectedTeamAId || f.team_b === selectedTeamAId)) {
+                                 const partner = f.team_a === selectedTeamAId ? f.team_b : f.team_a;
+                                 if (partner) {
+                                   const pId = String(partner).toLowerCase();
+                                   matchupCounts[pId] = (matchupCounts[pId] || 0) + 1;
+                                 }
+                               }
+                             });
+
+                             availableTeamsForB = availableTeamsForB.filter(t => {
+                               const count = matchupCounts[String(t.id).toLowerCase()] || 0;
+                               return count < maxAllowed;
+                             });
+                           }
 
                           return availableTeamsForB.map(t => <option key={t.id} value={t.id}>{t.name}</option>);
                         })()}

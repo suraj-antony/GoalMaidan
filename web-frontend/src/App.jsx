@@ -11,6 +11,7 @@ import LanguageSelect from './pages/auth/LanguageSelect';
 // Organiser Pages
 import OrganiserDashboard from './pages/organiser/Dashboard';
 import CreateTournament from './pages/organiser/CreateTournament';
+import EditTournament from './pages/organiser/EditTournament';
 import ManageTournament from './pages/organiser/ManageTournament';
 import TournamentDetail from './pages/organiser/TournamentDetail';
 import TournamentManage from './pages/organiser/TournamentManage';
@@ -67,9 +68,9 @@ function App() {
               <CreateTournament />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/edit/:id" element={
+          <Route path="/organiser/tournament/:id/edit" element={
             <ProtectedRoute allowedRoles={['organiser']}>
-              <CreateTournament />
+              <EditTournament />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/manage/:id" element={

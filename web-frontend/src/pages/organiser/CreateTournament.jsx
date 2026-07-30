@@ -55,7 +55,6 @@ const STATS_LIST = [
   { key: 'yellow_cards',       name: 'Yellow Cards',        icon: '🟨', locked: false },
   { key: 'red_cards',          name: 'Red Cards',           icon: '🟥', locked: false },
   { key: 'clean_sheets',       name: 'Clean Sheets',        icon: '🧱', locked: false },
-  { key: 'saves',              name: 'Saves',               icon: '🧤', locked: false },
   { key: 'man_of_the_match',   name: 'Man of the Match',    icon: '🏅', locked: false },
 ];
 
@@ -1736,7 +1735,6 @@ export default function CreateTournament() {
                   { key: 'yellow_cards',      icon: '🟨', name: 'Yellow Cards',       required: false, trackNote: null },
                   { key: 'red_cards',         icon: '🟥', name: 'Red Cards',          required: false, trackNote: null },
                   { key: 'clean_sheets',      icon: '🧱', name: 'Clean Sheets',       required: false, trackNote: null },
-                  { key: 'saves',             icon: '🧤', name: 'Saves',              required: false, trackNote: null },
                 ].map((stat, index, arr) => {
                   const isLast = index === arr.length - 1;
                   const trackVal = stat.required
