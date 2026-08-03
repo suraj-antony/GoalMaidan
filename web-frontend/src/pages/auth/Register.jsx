@@ -38,9 +38,8 @@ export default function Register() {
       }
 
       await api.post('/auth/register/', payload);
-      // Store email temporarily for OTP screen
-      localStorage.setItem('verify_email', formData.email);
-      navigate('/verify-otp');
+      // Redirect to login since email verification is bypassed
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {

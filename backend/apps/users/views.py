@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from django.db.models import Q
 
 from .serializers import RegisterSerializer, OTPVerifySerializer, LoginSerializer, UserSerializer
 from .utils import send_otp_email, verify_otp
@@ -26,9 +27,15 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            send_otp_email(user)
+            user.is_email_verified = True
+            user.save()
+            # send_otp_email(user)
+            # return Response({
+            #     "message": "OTP sent to email",
+            #     "user_id": user.id
+            # }, status=status.HTTP_201_CREATED)
             return Response({
-                "message": "OTP sent to email",
+                "message": "User created successfully",
                 "user_id": user.id
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -80,12 +87,12 @@ class LoginView(APIView):
             
             user = authenticate(request=request, email=email, password=password)
             if user:
-                if not user.is_email_verified:
-                    send_otp_email(user)
-                    return Response({
-                        "error": "Email not verified. A new OTP has been sent.",
-                        "user_id": user.id
-                    }, status=status.HTTP_403_FORBIDDEN)
+                # if not user.is_email_verified:
+                #     send_otp_email(user)
+                #     return Response({
+                #         "error": "Email not verified. A new OTP has been sent.",
+                #         "user_id": user.id
+                #     }, status=status.HTTP_403_FORBIDDEN)
                 
                 tokens = get_tokens_for_user(user)
                 user_data = UserSerializer(user).data
@@ -119,3 +126,25 @@ class ProfileView(APIView):
             
         user.save()
         return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+
+
+class UserListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = User.objects.all()
+        
+        # Filter by exact role (e.g. organiser or viewer)
+        role = request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+            
+        # Search by name or email
+        search = request.query_params.get('search') or request.query_params.get('q')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(email__icontains=search)
+            )
+            
+        serializer = UserSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
