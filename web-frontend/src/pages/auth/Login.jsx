@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -8,7 +8,10 @@ import { Mail, Lock } from 'lucide-react';
 export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  
+  const successMessage = location.state?.message;
   
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -75,7 +78,7 @@ export default function Login() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
             '--txt': '#ffffff',
-            '--txt2': '#cbd5e1',
+            '--txt2': '#94a3b8',
             '--border': 'rgba(255, 255, 255, 0.15)',
             '--bg': '#1e293b',
           }}
@@ -94,6 +97,7 @@ export default function Login() {
           </div>
           
           {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">{error}</div>}
+          {successMessage && <div className="mb-4 p-3 bg-emerald-900/40 text-emerald-300 border border-emerald-500/30 rounded-md text-sm">{successMessage}</div>}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

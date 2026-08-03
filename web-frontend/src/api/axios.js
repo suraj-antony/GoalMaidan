@@ -5,9 +5,17 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Do not attach Authorization header to public auth endpoints
+  const isAuthRoute = config.url.includes('/auth/register') ||
+                      config.url.includes('/auth/login') ||
+                      config.url.includes('/auth/verify-email') ||
+                      config.url.includes('/auth/refresh');
+
+  if (!isAuthRoute) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

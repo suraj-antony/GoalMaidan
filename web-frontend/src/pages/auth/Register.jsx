@@ -38,8 +38,8 @@ export default function Register() {
       }
 
       await api.post('/auth/register/', payload);
-      // Redirect to login since email verification is bypassed
-      navigate('/login');
+      // Redirect to login with success state since email verification is bypassed
+      navigate('/login', { state: { message: 'User registered successfully!' } });
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -81,7 +81,7 @@ export default function Register() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
             '--txt': '#ffffff',
-            '--txt2': '#cbd5e1',
+            '--txt2': '#94a3b8',
             '--border': 'rgba(255, 255, 255, 0.15)',
             '--bg': '#1e293b',
           }}
