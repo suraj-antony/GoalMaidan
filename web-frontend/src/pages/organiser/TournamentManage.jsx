@@ -5,6 +5,7 @@ import api from '../../api/axios';
 import MatchResultModal from '../../components/MatchResultModal';
 import StatusBadge from '../../components/StatusBadge';
 import { BracketView } from '../../components/BracketView';
+import { useTheme } from '../../context/ThemeContext';
 
 const ageLabels = {
   U7: 'Under 7', U8: 'Under 8', U9: 'Under 9', U10: 'Under 10', U11: 'Under 11',
@@ -354,6 +355,7 @@ const getStartingKnockoutStage = (numTeams) => {
 export default function TournamentManage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { darkMode } = useTheme();
 
   const getTeamGroup = (teamId) => {
     if (!teamId || !groups || groups.length === 0) return null;
@@ -1819,7 +1821,22 @@ export default function TournamentManage() {
 
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative text-[var(--txt)]">
+    <div style={{
+      minHeight: '100vh',
+      width: '100%',
+      position: 'relative',
+      backgroundImage: `url('https://images.pexels.com/photos/9786378/pexels-photo-9786378.jpeg')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: window.innerWidth < 768 ? 'scroll' : 'fixed',
+    }}>
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.72)', // Darker slate overlay to keep background photo elegant and dark
+      }} />
+      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10 text-[var(--txt)]">
       
       {/* Toast Notification */}
       {toast && (
@@ -1837,17 +1854,17 @@ export default function TournamentManage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 border border-[var(--border)] rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            className="p-2 border border-white/20 rounded-xl hover:bg-white/10 text-white transition-colors"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-black">{tournament.name}</h1>
+            <h1 className="text-2xl font-black text-white">{tournament.name}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider">
+              <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
                 🛡️ {tournament.area_name}
               </span>
-              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+              <span className="text-zinc-400">·</span>
               
               {/* Status Badge */}
               <StatusBadge status={tournament.status} />
@@ -1857,7 +1874,7 @@ export default function TournamentManage() {
 
         <button
           onClick={() => navigate(`/organiser/tournament/${id}/edit`)}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 font-bold text-xs rounded-xl shadow-sm transition-all"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-white/20 text-white hover:bg-white/10 font-bold text-xs rounded-xl shadow-sm transition-all"
         >
           <span>✏️</span>
           <span>Edit Setup</span>
@@ -1865,7 +1882,7 @@ export default function TournamentManage() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex border-b border-[var(--border)] gap-2 overflow-x-auto pb-px mb-6 scrollbar-none">
+      <div className="flex border-b border-white/15 gap-2 overflow-x-auto pb-px mb-6 scrollbar-none">
         {tabs.map(tab => {
           const isAct = activeTab === tab.key;
           return (
@@ -1874,8 +1891,8 @@ export default function TournamentManage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
                 ${isAct 
-                  ? 'border-green-700 text-green-700 dark:text-green-400 dark:border-green-400 font-black' 
-                  : 'border-transparent text-[var(--txt2)] hover:text-[var(--txt)]'}`}
+                  ? 'border-emerald-400 text-emerald-400 font-black' 
+                  : 'border-transparent text-zinc-300 hover:text-white'}`}
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>
@@ -1947,10 +1964,10 @@ export default function TournamentManage() {
 
               {/* Knockout Options / settings card */}
               {(tournament.tournament_type === 'knockout' || tournament.tournament_type === 'league_knockout') && (
-                <div className={`rounded-2xl p-6 border shadow-sm space-y-4 transition-all duration-200 ${
+                <div className={`rounded-2xl p-6 border shadow-sm space-y-4 transition-all duration-200 bg-[var(--card)] ${
                   tournament.third_place_option 
-                    ? 'bg-green-50/10 border-green-200 dark:border-green-900/60' 
-                    : 'bg-[var(--card)] border-[var(--border)]'
+                    ? 'border-green-400 dark:border-green-800' 
+                    : 'border-[var(--border)]'
                 }`}>
                   <h3 className="font-extrabold text-base border-b border-[var(--border)] pb-2 flex items-center justify-between">
                     <span className="flex items-center gap-2">⚙️ Knockout Settings</span>
@@ -4399,6 +4416,7 @@ export default function TournamentManage() {
         </div>
       )}
 
+      </div>
     </div>
   );
 }
