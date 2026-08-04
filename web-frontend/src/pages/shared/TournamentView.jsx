@@ -4,16 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import LeagueTable from '../../components/LeagueTable';
-import KnockoutBracket from '../../components/KnockoutBracket';
+import { BracketView } from '../../components/BracketView';
 import MatchCard from '../../components/MatchCard';
 import FixtureCard from '../../components/FixtureCard';
 import WhatsAppShareButton from '../../components/WhatsAppShareButton';
-import { Trophy, List, Calendar, Star, Lock } from 'lucide-react';
+import { Trophy, List, Calendar, Star, Lock, BarChart2 } from 'lucide-react';
 
 const TABS = [
   { key: 'table', label: 'Table / Bracket', icon: List },
   { key: 'fixtures', label: 'Fixtures', icon: Calendar },
   { key: 'results', label: 'Results', icon: Trophy },
+  { key: 'stats', label: 'Stats', icon: BarChart2 },
   { key: 'awards', label: 'Awards', icon: Star },
 ];
 
@@ -25,8 +26,11 @@ export default function TournamentView() {
   const [fixtures, setFixtures] = useState([]);
   const [table, setTable] = useState([]);
   const [awards, setAwards] = useState([]);
-  const [topScorers, setTopScorers] = useState([]);
+  const [scorers, setScorers] = useState([]);
+  const [assists, setAssists] = useState([]);
+  const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState('table');
 
@@ -69,19 +73,22 @@ export default function TournamentView() {
           setTable(tableRes.data);
         }
 
-        // Fetch awards
-        const [aRes, sRes] = await Promise.all([
+        // Fetch awards and stats
+        const [aRes, statsRes] = await Promise.all([
           api.get(`/awards/?tournament=${id}`),
-          api.get(`/awards/top-scorers/?tournament=${id}`),
+          api.get(`/awards/${id}/all/`),
         ]);
         setAwards(aRes.data);
-        setTopScorers(sRes.data);
+        setScorers(statsRes.data.scorers || []);
+        setAssists(statsRes.data.assists || []);
+        setContributions(statsRes.data.goal_contributions || []);
 
       } catch (err) {
         if (err.response?.status === 403) setAccessDenied(true);
         else console.error(err);
       } finally {
         setLoading(false);
+        setStatsLoading(false);
       }
     };
     fetchData();
@@ -194,7 +201,7 @@ export default function TournamentView() {
           ) : (
             <>
               <h2 className="text-xl font-bold mb-4">Knockout Bracket</h2>
-              <KnockoutBracket fixtures={fixtures} />
+              <BracketView tournamentId={tournament.id} editable={false} />
             </>
           )}
         </div>
@@ -228,24 +235,20 @@ export default function TournamentView() {
             ))
           )}
 
-          {/* Top Scorers */}
-          {topScorers.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-bold mb-4">{t('top_scorers')}</h3>
-              <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden">
-                {topScorers.map((scorer, i) => (
-                  <div key={scorer.player_id || i} className="flex items-center gap-4 px-4 py-3 border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg2)] transition-colors">
-                    <span className={`text-lg font-bold w-7 ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-600' : 'text-[var(--txt2)]'}`}>
-                      {i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-semibold">{scorer.player_name}</p>
-                      <p className="text-xs text-[var(--txt2)]">{scorer.team_name}</p>
-                    </div>
-                    <span className="text-xl font-bold text-primary-600">{scorer.goals} ⚽</span>
-                  </div>
-                ))}
-              </div>
+        </div>
+      )}
+
+      {/* Stats Tab */}
+      {activeTab === 'stats' && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold mb-4">Tournament Stats</h2>
+          {statsLoading ? (
+            <div className="text-center py-12 text-[var(--txt2)]">Loading stats...</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <TopScorersTable scorers={scorers} />
+              <TopAssistsTable assists={assists} />
+              <GoalContributionsTable contributions={contributions} />
             </div>
           )}
         </div>
@@ -288,3 +291,166 @@ export default function TournamentView() {
     </div>
   );
 }
+
+// Helper components for stats tables
+const TOP_N = 5;
+const MEDAL = (i) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
+
+const TopScorersTable = ({ scorers }) => {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? scorers : (scorers || []).slice(0, TOP_N);
+  const hasMore = (scorers || []).length > TOP_N;
+
+  return (
+    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden flex flex-col justify-between shadow-sm">
+      <div>
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[var(--txt)]">⚽ Top Scorers</h3>
+        </div>
+        {!scorers || scorers.length === 0 ? (
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No goals recorded yet.</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--bg2)]">
+              <tr>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)] w-8">#</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Player</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Team</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--txt2)] w-14">Goals</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {visible.map((s, i) => (
+                <tr key={i} className={i === 0 ? 'bg-yellow-50/20' : 'hover:bg-[var(--bg2)]'}>
+                  <td className="px-3 py-1.5 text-center text-xs">
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
+                  </td>
+                  <td className="px-3 py-1.5 font-semibold text-[var(--txt)]">{s.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{s.team_name}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-green-600">{s.goals}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {hasMore && (
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-[var(--bg2)]">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="w-full py-1 text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100/50 rounded-lg transition-colors flex items-center justify-center gap-1"
+          >
+            {expanded ? '▲ Less' : '▼ More'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopAssistsTable = ({ assists }) => {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? assists : (assists || []).slice(0, TOP_N);
+  const hasMore = (assists || []).length > TOP_N;
+
+  return (
+    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden flex flex-col justify-between shadow-sm">
+      <div>
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[var(--txt)]">🅰️ Top Assists</h3>
+        </div>
+        {!assists || assists.length === 0 ? (
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No assists recorded yet.</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--bg2)]">
+              <tr>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)] w-8">#</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Player</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Team</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--txt2)] w-16">Assists</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {visible.map((a, i) => (
+                <tr key={i} className={i === 0 ? 'bg-blue-50/20' : 'hover:bg-[var(--bg2)]'}>
+                  <td className="px-3 py-1.5 text-center text-xs">
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
+                  </td>
+                  <td className="px-3 py-1.5 font-semibold text-[var(--txt)]">{a.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{a.team_name}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-blue-700">{a.assists}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {hasMore && (
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-[var(--bg2)]">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="w-full py-1 text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100/50 rounded-lg transition-colors flex items-center justify-center gap-1"
+          >
+            {expanded ? '▲ Less' : '▼ More'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const GoalContributionsTable = ({ contributions }) => {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? contributions : (contributions || []).slice(0, TOP_N);
+  const hasMore = (contributions || []).length > TOP_N;
+
+  return (
+    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] overflow-hidden flex flex-col justify-between shadow-sm">
+      <div>
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--txt)]">🎯 Goal Contributions</h3>
+            <p className="text-[10px] text-[var(--txt2)]">Goals + Assists</p>
+          </div>
+        </div>
+        {!contributions || contributions.length === 0 ? (
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No contributions recorded yet.</div>
+        ) : (
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--bg2)]">
+              <tr>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)] w-8">#</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Player</th>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-[var(--txt2)]">Team</th>
+                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--txt2)] w-14">G+A</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {visible.map((c, i) => (
+                <tr key={i} className={i === 0 ? 'bg-purple-50/20' : 'hover:bg-[var(--bg2)]'}>
+                  <td className="px-3 py-1.5 text-center text-xs">
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
+                  </td>
+                  <td className="px-3 py-1.5 font-semibold text-[var(--txt)]">{c.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{c.team_name}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-purple-600">{c.goals + c.assists}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {hasMore && (
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-[var(--bg2)]">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="w-full py-1 text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100/50 rounded-lg transition-colors flex items-center justify-center gap-1"
+          >
+            {expanded ? '▲ Less' : '▼ More'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};

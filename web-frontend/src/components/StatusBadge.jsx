@@ -2,28 +2,28 @@ export const StatusBadge = ({ status }) => {
   const config = {
     scheduled: {
       label: 'Scheduled',
-      style: { backgroundColor: 'rgba(113, 113, 122, 0.2)', color: '#d4d4d8', borderColor: 'rgba(113, 113, 122, 0.3)' },
+      style: { backgroundColor: 'var(--badge-scheduled-bg)', color: 'var(--badge-scheduled-txt)', borderColor: 'var(--badge-scheduled-border)' },
     },
     live: {
       label: '🔴 Live',
-      style: { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.3)' },
+      style: { backgroundColor: 'var(--badge-live-bg)', color: 'var(--badge-live-txt)', borderColor: 'var(--badge-live-border)' },
       animate: true,
     },
     completed: {
       label: '✅ Completed',
-      style: { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#86efac', borderColor: 'rgba(34, 197, 94, 0.3)' },
+      style: { backgroundColor: 'var(--badge-completed-bg)', color: 'var(--badge-completed-txt)', borderColor: 'var(--badge-completed-border)' },
     },
     draft: {
       label: 'Draft',
-      style: { backgroundColor: 'rgba(113, 113, 122, 0.25)', color: '#e4e4e7', borderColor: 'rgba(113, 113, 122, 0.3)' },
+      style: { backgroundColor: 'var(--badge-draft-bg)', color: 'var(--badge-draft-txt)', borderColor: 'var(--badge-draft-border)' },
     },
     active: {
       label: '● Active',
-      style: { backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.3)' },
+      style: { backgroundColor: 'var(--badge-active-bg)', color: 'var(--badge-active-txt)', borderColor: 'var(--badge-active-border)' },
     },
     completed_tournament: {
       label: '✓ Completed',
-      style: { backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', borderColor: 'rgba(59, 130, 246, 0.3)' },
+      style: { backgroundColor: 'var(--badge-completed-tournament-bg)', color: 'var(--badge-completed-tournament-txt)', borderColor: 'var(--badge-completed-tournament-border)' },
     },
   };
 

@@ -5,6 +5,8 @@ class TournamentSerializer(serializers.ModelSerializer):
     organiser_name = serializers.CharField(source='organiser.name', read_only=True)
     organiser_area = serializers.CharField(source='organiser.area_name', read_only=True)
     team_count = serializers.SerializerMethodField()
+    access_type = serializers.SerializerMethodField()
+    has_access = serializers.SerializerMethodField()
 
     class Meta:
         model = Tournament
@@ -13,6 +15,20 @@ class TournamentSerializer(serializers.ModelSerializer):
 
     def get_team_count(self, obj):
         return obj.teams.count()
+
+    def get_access_type(self, obj):
+        return 'private' if not obj.public_stats else 'public'
+
+    def get_has_access(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        if request.user.role == 'organiser':
+            return obj.organiser == request.user
+        if obj.public_stats:
+            return True
+        # Check if the viewer has approved access
+        return obj.vieweraccessrequest_set.filter(viewer=request.user, status='approved').exists()
 
     def validate(self, data):
         # If Open or Veterans, clear all age verification fields

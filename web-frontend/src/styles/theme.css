@@ -13,6 +13,31 @@
   --border: #e2e8f0; /* clean light border */
   --green: #1a6b2f;
   --green-bg: #d4edda;
+
+  /* Status Badges - Light Theme */
+  --badge-scheduled-bg: rgba(113, 113, 122, 0.15);
+  --badge-scheduled-txt: #4b5563;
+  --badge-scheduled-border: rgba(113, 113, 122, 0.3);
+
+  --badge-draft-bg: rgba(113, 113, 122, 0.15);
+  --badge-draft-txt: #4b5563;
+  --badge-draft-border: rgba(113, 113, 122, 0.3);
+
+  --badge-live-bg: rgba(239, 68, 68, 0.15);
+  --badge-live-txt: #b91c1c;
+  --badge-live-border: rgba(239, 68, 68, 0.3);
+
+  --badge-completed-bg: rgba(34, 197, 94, 0.15);
+  --badge-completed-txt: #15803d;
+  --badge-completed-border: rgba(34, 197, 94, 0.3);
+
+  --badge-active-bg: rgba(16, 185, 129, 0.15);
+  --badge-active-txt: #047857;
+  --badge-active-border: rgba(16, 185, 129, 0.3);
+
+  --badge-completed-tournament-bg: rgba(59, 130, 246, 0.15);
+  --badge-completed-tournament-txt: #1d4ed8;
+  --badge-completed-tournament-border: rgba(59, 130, 246, 0.3);
 }
 
 [data-theme="dark"] {
@@ -24,6 +49,31 @@
   --border: #2a2a2a;
   --green: #2ecc6a;
   --green-bg: #0d2e1a;
+
+  /* Status Badges - Dark Theme */
+  --badge-scheduled-bg: rgba(113, 113, 122, 0.2);
+  --badge-scheduled-txt: #d4d4d8;
+  --badge-scheduled-border: rgba(113, 113, 122, 0.3);
+
+  --badge-draft-bg: rgba(113, 113, 122, 0.25);
+  --badge-draft-txt: #e4e4e7;
+  --badge-draft-border: rgba(113, 113, 122, 0.3);
+
+  --badge-live-bg: rgba(239, 68, 68, 0.2);
+  --badge-live-txt: #fca5a5;
+  --badge-live-border: rgba(239, 68, 68, 0.3);
+
+  --badge-completed-bg: rgba(34, 197, 94, 0.2);
+  --badge-completed-txt: #86efac;
+  --badge-completed-border: rgba(34, 197, 94, 0.3);
+
+  --badge-active-bg: rgba(16, 185, 129, 0.2);
+  --badge-active-txt: #6ee7b7;
+  --badge-active-border: rgba(16, 185, 129, 0.3);
+
+  --badge-completed-tournament-bg: rgba(59, 130, 246, 0.2);
+  --badge-completed-tournament-txt: #93c5fd;
+  --badge-completed-tournament-border: rgba(59, 130, 246, 0.3);
 }
 
 body {

@@ -1328,7 +1328,9 @@ def bracket_view(request, tournament_id):
         return Response({'error': 'Tournament not found'}, status=404)
 
     if tournament.organiser != request.user and not tournament.public_stats:
-        return Response({'error': 'Access denied'}, status=403)
+        has_access = tournament.vieweraccessrequest_set.filter(viewer=request.user, status='approved').exists() if hasattr(tournament, 'vieweraccessrequest_set') else False
+        if not has_access:
+            return Response({'error': 'Access denied'}, status=403)
 
     KNOCKOUT_STAGE_ORDER = ['round_of_64', 'round_of_32', 'round_of_16', 'quarter', 'semi', 'final']
     STAGE_DISPLAY_NAMES = {

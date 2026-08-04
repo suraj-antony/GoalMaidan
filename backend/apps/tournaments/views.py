@@ -20,6 +20,21 @@ from apps.fixtures.models import Fixture
 class TournamentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        if request.user.role == 'viewer':
+            # Viewers see all tournaments (both public and private, so they can request access to private ones)
+            tournaments = Tournament.objects.all().order_by('-created_at')
+            serializer = TournamentSerializer(tournaments, many=True, context={'request': request})
+            return Response(serializer.data)
+            
+        elif request.user.role == 'organiser':
+            # Organisers see their own tournaments
+            tournaments = Tournament.objects.filter(organiser=request.user).order_by('-created_at')
+            serializer = TournamentSerializer(tournaments, many=True, context={'request': request})
+            return Response(serializer.data)
+            
+        return Response([])
+
     def post(self, request):
         if request.user.role != 'organiser':
             return Response({"error": "Only organisers can create tournaments"}, status=status.HTTP_403_FORBIDDEN)
@@ -111,7 +126,7 @@ class TournamentDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Tournament.objects.filter(organiser=self.request.user)
+        return Tournament.objects.all()
 
     def update(self, request, *args, **kwargs):
         return self._handle_update(request, *args, **kwargs)
@@ -171,6 +186,14 @@ class TournamentDetailView(generics.RetrieveUpdateDestroyAPIView):
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
+            
+            # Access control for private tournaments
+            if instance.organiser != request.user:
+                if not instance.public_stats:
+                    has_access = instance.vieweraccessrequest_set.filter(viewer=request.user, status='approved').exists() if hasattr(instance, 'vieweraccessrequest_set') else False
+                    if not has_access:
+                        return Response({'error': 'Access denied to this private tournament.'}, status=status.HTTP_403_FORBIDDEN)
+
             serializer = self.get_serializer(instance)
             data = serializer.data
             # Add extra detail

@@ -31,7 +31,13 @@ export default function ViewerDashboard() {
         (t.area_name || '').toLowerCase().includes(search.toLowerCase())
       );
     }
-    if (statusFilter !== 'all') result = result.filter(t => t.status === statusFilter);
+    if (statusFilter !== 'all') {
+      result = result.filter(t => {
+        if (statusFilter === 'live') return t.status === 'active' || t.status === 'live';
+        if (statusFilter === 'upcoming') return t.status === 'draft' || t.status === 'upcoming';
+        return t.status === statusFilter;
+      });
+    }
     if (typeFilter !== 'all') result = result.filter(t => t.tournament_type === typeFilter);
     setFiltered(result);
   }, [search, statusFilter, typeFilter, tournaments]);
@@ -112,8 +118,8 @@ export default function ViewerDashboard() {
                     ) : (
                       <Globe size={16} className="opacity-80" />
                     )}
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tournament.status === 'live' ? 'bg-white/30' : 'bg-white/20'}`}>
-                      {tournament.status === 'live' ? '🔴 LIVE' : tournament.status || 'upcoming'}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(tournament.status === 'active' || tournament.status === 'live') ? 'bg-white/30' : 'bg-white/20'}`}>
+                      {(tournament.status === 'active' || tournament.status === 'live') ? '🔴 LIVE' : (tournament.status === 'draft' ? 'upcoming' : tournament.status || 'upcoming')}
                     </span>
                   </div>
                 </div>
