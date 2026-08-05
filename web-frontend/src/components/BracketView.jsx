@@ -25,8 +25,8 @@ const MatchCard = ({ match, onEdit, editable }) => {
       alignItems: 'center',
       padding: '0 12px',
       height: '36px',
-      backgroundColor: won ? '#f0fdf4' : lost ? '#f9fafb' : '#ffffff',
-      borderLeft: won ? '3.5px solid #22c55e' : '3.5px solid transparent',
+      backgroundColor: won ? 'var(--green-bg)' : lost ? 'var(--bg2)' : 'transparent',
+      borderLeft: won ? '3.5px solid var(--green)' : '3.5px solid transparent',
       transition: 'all 0.15s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
@@ -34,17 +34,17 @@ const MatchCard = ({ match, onEdit, editable }) => {
           width: '8px',
           height: '8px',
           borderRadius: '50%',
-          backgroundColor: won ? '#22c55e' : lost ? '#cbd5e1' : '#e2e8f0',
+          backgroundColor: won ? 'var(--green)' : lost ? 'var(--border)' : 'var(--border)',
           flexShrink: 0,
         }} />
         <span style={{
           fontSize: '13px',
           fontWeight: won ? '700' : '500',
           color: team
-            ? won ? '#0f172a'
-            : lost ? '#64748b'
-            : '#334155'
-            : '#94a3b8',
+            ? won ? 'var(--txt)'
+            : lost ? 'var(--txt2)'
+            : 'var(--txt)'
+            : 'var(--txt2)',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -58,7 +58,7 @@ const MatchCard = ({ match, onEdit, editable }) => {
           <span style={{
             fontSize: '13px',
             fontWeight: won ? '800' : '500',
-            color: won ? '#16a34a' : lost ? '#64748b' : '#334155',
+            color: won ? 'var(--green)' : lost ? 'var(--txt2)' : 'var(--txt)',
           }}>
             {score}
           </span>
@@ -66,8 +66,8 @@ const MatchCard = ({ match, onEdit, editable }) => {
             <span style={{
               fontSize: '10px',
               fontWeight: '700',
-              backgroundColor: '#f1f5f9',
-              color: '#64748b',
+              backgroundColor: 'var(--bg2)',
+              color: 'var(--txt2)',
               padding: '1px 4px',
               borderRadius: '4px',
             }}>
@@ -86,9 +86,9 @@ const MatchCard = ({ match, onEdit, editable }) => {
         width: '190px',
         height: '74px',
         borderRadius: '12px',
-        border: '1px solid #e2e8f0',
+        border: '1px solid var(--border)',
         overflow: 'hidden',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--card)',
         cursor: editable ? 'pointer' : 'default',
         boxShadow: '0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03)',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -98,23 +98,23 @@ const MatchCard = ({ match, onEdit, editable }) => {
         if (editable) {
           e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)';
           e.currentTarget.style.transform = 'translateY(-1px)';
-          e.currentTarget.style.borderColor = '#cbd5e1';
+          e.currentTarget.style.borderColor = 'var(--txt2)';
         }
       }}
       onMouseLeave={e => {
         e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03)';
         e.currentTarget.style.transform = 'translateY(0px)';
-        e.currentTarget.style.borderColor = '#e2e8f0';
+        e.currentTarget.style.borderColor = 'var(--border)';
       }}
     >
       {teamRow(match.team_a, match.score_a, aWon, aLost, match.penalty_score_a)}
-      <div style={{ height: '1.5px', backgroundColor: '#f1f5f9' }} />
+      <div style={{ height: '1.5px', backgroundColor: 'var(--border)' }} />
       {teamRow(match.team_b, match.score_b, bWon, bLost, match.penalty_score_b)}
     </div>
   );
 };
 
-export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
+export const BracketView = ({ tournamentId, onEditMatch, editable = true, darkBackground = false }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -202,8 +202,8 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
       borderRadius: '20px',
       background: championName 
         ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' 
-        : '#ffffff',
-      border: championName ? '2px solid #fbbf24' : '2px dashed #e2e8f0',
+        : 'var(--card)',
+      border: championName ? '2px solid #fbbf24' : '2px dashed var(--border)',
       boxShadow: championName ? '0 10px 25px -5px rgba(251, 191, 36, 0.2)' : 'none',
       width: '210px',
       textAlign: 'center',
@@ -258,9 +258,9 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
           <span style={{
             fontSize: '9px',
             fontWeight: '800',
-            color: '#64748b',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            color: 'var(--txt2)',
+            backgroundColor: 'var(--bg2)',
+            border: '1px solid var(--border)',
             padding: '3px 8px',
             borderRadius: '20px',
             textTransform: 'uppercase',
@@ -272,7 +272,7 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
           <div style={{
             fontSize: '12px',
             fontWeight: '500',
-            color: '#94a3b8',
+            color: 'var(--txt2)',
           }}>
             Winner takes the crown
           </div>
@@ -298,11 +298,16 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
               <div style={{
                 fontSize: '11px', 
                 fontWeight: '800', 
-                color: '#64748b',
+                color: darkBackground ? '#ffffff' : 'var(--txt2, #64748b)',
+                backgroundColor: darkBackground ? 'rgba(15, 23, 42, 0.65)' : 'transparent',
+                border: darkBackground ? '1px solid rgba(255, 255, 255, 0.15)' : 'none',
+                padding: darkBackground ? '4px 12px' : '0',
+                borderRadius: darkBackground ? '9999px' : '0',
                 textTransform: 'uppercase', 
                 letterSpacing: '0.08em',
                 textAlign: 'center', 
                 marginBottom: '24px',
+                backdropFilter: darkBackground ? 'blur(4px)' : 'none',
               }}>
                 {round.name}
               </div>
@@ -420,11 +425,16 @@ export const BracketView = ({ tournamentId, onEditMatch, editable = true }) => {
           <div style={{
             fontSize: '11px', 
             fontWeight: '800', 
-            color: '#64748b',
+            color: darkBackground ? '#ffffff' : 'var(--txt2, #64748b)',
+            backgroundColor: darkBackground ? 'rgba(15, 23, 42, 0.65)' : 'transparent',
+            border: darkBackground ? '1px solid rgba(255, 255, 255, 0.15)' : 'none',
+            padding: darkBackground ? '4px 12px' : '0',
+            borderRadius: darkBackground ? '9999px' : '0',
             textTransform: 'uppercase', 
             letterSpacing: '0.08em',
             textAlign: 'center', 
             marginBottom: '24px',
+            backdropFilter: darkBackground ? 'blur(4px)' : 'none',
           }}>
             Finals
           </div>

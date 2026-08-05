@@ -259,7 +259,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
     if (list.length > 0) {
       return (
         <select
-          className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
+          className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
           value={selectedId}
           onChange={e => {
             const val = e.target.value;
@@ -271,9 +271,9 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
             }
           }}
         >
-          <option value="">Select Player ({list.length} available)</option>
+          <option value="" className="text-gray-400">Select Player ({list.length} available)</option>
           {list.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id} className="bg-[var(--bg)] text-[var(--txt)]">{p.name}</option>
           ))}
         </select>
       );
@@ -282,7 +282,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
         <input
           type="text"
           placeholder={placeholder || "Player name"}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none text-black"
+          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
           value={value || ''}
           onChange={e => onChange(e.target.value)}
         />
@@ -299,7 +299,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
     if (list.length > 0) {
       return (
         <select
-          className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
+          className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
           value={row.player_id || ''}
           onChange={e => {
             const val = e.target.value;
@@ -311,9 +311,9 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
             }
           }}
         >
-          <option value="">Select Player ({list.length} available)</option>
+          <option value="" className="text-gray-400">Select Player ({list.length} available)</option>
           {list.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id} className="bg-[var(--bg)] text-[var(--txt)]">{p.name}</option>
           ))}
         </select>
       );
@@ -322,7 +322,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
         <input
           type="text"
           placeholder="Player name"
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
+          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
           value={row.player_name || ''}
           onChange={e => onUpdateRow({ player_name: e.target.value })}
         />
@@ -373,7 +373,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: '14px',
-              backgroundColor: '#f9fafb',
+              backgroundColor: 'var(--bg2)',
               borderRadius: '14px',
               padding: '16px',
             }}>
@@ -381,7 +381,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               {/* ── TEAM A COLUMN ── */}
               <div>
                 <div style={{
-                  fontSize: '13px', fontWeight: '700', color: '#111827',
+                  fontSize: '13px', fontWeight: '700', color: 'var(--txt)',
                   textAlign: 'center', marginBottom: '8px',
                 }}>
                   {fixture.team_a_name}
@@ -401,20 +401,20 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                   }}
                   style={{
                     width: '100%', textAlign: 'center',
-                    fontSize: '28px', fontWeight: '800', color: '#111827',
+                    fontSize: '28px', fontWeight: '800', color: 'var(--txt)',
                     padding: '10px', borderRadius: '10px',
-                    border: '2px solid #e5e7eb', backgroundColor: '#ffffff',
+                    border: '2px solid var(--border)', backgroundColor: 'var(--bg)',
                     outline: 'none', marginBottom: '10px',
                   }}
                 />
 
                 {/* Team A scorer list — directly under Team A's score */}
                 <div style={{
-                  backgroundColor: '#ffffff', borderRadius: '10px',
-                  border: '1px solid #e5e7eb', padding: '8px',
+                  backgroundColor: 'var(--bg)', borderRadius: '10px',
+                  border: '1px solid var(--border)', padding: '8px',
                 }}>
                   <div style={{
-                    fontSize: '10px', fontWeight: '700', color: '#9ca3af',
+                    fontSize: '10px', fontWeight: '700', color: 'var(--txt2)',
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                     marginBottom: '6px', display: 'flex', justifyContent: 'space-between',
                     alignItems: 'center',
@@ -430,7 +430,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                   </div>
 
                   {goalsTeamA.length === 0 ? (
-                    <div style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center', padding: '6px 0' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--txt2)', textAlign: 'center', padding: '6px 0' }}>
                       No scorers yet
                     </div>
                   ) : (
@@ -462,7 +462,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               {/* ── TEAM B COLUMN ── */}
               <div>
                 <div style={{
-                  fontSize: '13px', fontWeight: '700', color: '#111827',
+                  fontSize: '13px', fontWeight: '700', color: 'var(--txt)',
                   textAlign: 'center', marginBottom: '8px',
                 }}>
                   {fixture.team_b_name}
@@ -481,19 +481,19 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                   }}
                   style={{
                     width: '100%', textAlign: 'center',
-                    fontSize: '28px', fontWeight: '800', color: '#111827',
+                    fontSize: '28px', fontWeight: '800', color: 'var(--txt)',
                     padding: '10px', borderRadius: '10px',
-                    border: '2px solid #e5e7eb', backgroundColor: '#ffffff',
+                    border: '2px solid var(--border)', backgroundColor: 'var(--bg)',
                     outline: 'none', marginBottom: '10px',
                   }}
                 />
 
                 <div style={{
-                  backgroundColor: '#ffffff', borderRadius: '10px',
-                  border: '1px solid #e5e7eb', padding: '8px',
+                  backgroundColor: 'var(--bg)', borderRadius: '10px',
+                  border: '1px solid var(--border)', padding: '8px',
                 }}>
                   <div style={{
-                    fontSize: '10px', fontWeight: '700', color: '#9ca3af',
+                    fontSize: '10px', fontWeight: '700', color: 'var(--txt2)',
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                     marginBottom: '6px', display: 'flex', justifyContent: 'space-between',
                     alignItems: 'center',
@@ -509,7 +509,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                   </div>
 
                   {goalsTeamB.length === 0 ? (
-                    <div style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center', padding: '6px 0' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--txt2)', textAlign: 'center', padding: '6px 0' }}>
                       No scorers yet
                     </div>
                   ) : (
@@ -543,8 +543,8 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
           {/* ── KNOCKOUT DRAW: Penalty Shootout Section ── */}
           {isKnockoutDraw && (
             <div style={{
-              backgroundColor: '#fff7ed',
-              border: '2px solid #fb923c',
+              backgroundColor: 'var(--penalty-bg)',
+              border: '2px solid var(--penalty-border)',
               borderRadius: '16px',
               padding: '16px',
               marginBottom: '20px',
@@ -552,15 +552,15 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '18px' }}>🎯</span>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: '800', color: '#9a3412' }}>Knockout Draw — Penalty Shootout Required</div>
-                  <div style={{ fontSize: '11px', color: '#c2410c' }}>This match ended {scoreA}–{scoreB}. Enter the penalty shootout scores below.</div>
+                  <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--penalty-txt)' }}>Knockout Draw — Penalty Shootout Required</div>
+                  <div style={{ fontSize: '11px', color: 'var(--penalty-txt2)' }}>This match ended {scoreA}–{scoreB}. Enter the penalty shootout scores below.</div>
                 </div>
               </div>
 
               {/* Penalty Score Inputs */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '12px' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', marginBottom: '6px' }}>{fixture.team_a_name}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--penalty-txt)', marginBottom: '6px' }}>{fixture.team_a_name}</div>
                   <input
                     type="number"
                     min="0"
@@ -574,17 +574,17 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       fontSize: '28px',
                       fontWeight: '900',
                       padding: '8px',
-                      border: '2px solid #fb923c',
+                      border: '2px solid var(--penalty-border)',
                       borderRadius: '12px',
-                      backgroundColor: '#fff',
-                      color: '#7c2d12',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--txt)',
                       outline: 'none',
                     }}
                   />
                 </div>
-                <span style={{ fontSize: '20px', fontWeight: '900', color: '#c2410c' }}>–</span>
+                <span style={{ fontSize: '20px', fontWeight: '900', color: 'var(--penalty-txt2)' }}>–</span>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#9a3412', marginBottom: '6px' }}>{fixture.team_b_name}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--penalty-txt)', marginBottom: '6px' }}>{fixture.team_b_name}</div>
                   <input
                     type="number"
                     min="0"
@@ -598,10 +598,10 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       fontSize: '28px',
                       fontWeight: '900',
                       padding: '8px',
-                      border: '2px solid #fb923c',
+                      border: '2px solid var(--penalty-border)',
                       borderRadius: '12px',
-                      backgroundColor: '#fff',
-                      color: '#7c2d12',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--txt)',
                       outline: 'none',
                     }}
                   />
@@ -613,12 +613,12 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                 <div style={{
                   textAlign: 'center',
                   padding: '8px 14px',
-                  backgroundColor: '#dcfce7',
-                  border: '1px solid #86efac',
+                  backgroundColor: 'var(--green-bg)',
+                  border: '1px solid var(--green)',
                   borderRadius: '10px',
                   fontSize: '12px',
                   fontWeight: '800',
-                  color: '#15803d',
+                  color: 'var(--green)',
                 }}>
                   🏆 Winner on penalties: {penANum > penBNum ? fixture.team_a_name : fixture.team_b_name}
                 </div>
@@ -627,13 +627,13 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               {/* Still a draw after penalties — manual winner pick */}
               {needsManualWinner && (
                 <div style={{
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #fecaca',
+                  backgroundColor: 'var(--badge-live-bg)',
+                  border: '1px solid var(--badge-live-border)',
                   borderRadius: '10px',
                   padding: '12px',
                   marginTop: '8px',
                 }}>
-                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#991b1b', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--badge-live-txt)', marginBottom: '8px' }}>
                     ⚠️ Penalty shootout also ended in a draw! Manually select the match winner:
                   </div>
                   <select
@@ -643,16 +643,16 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1.5px solid #fca5a5',
-                      backgroundColor: '#fff',
+                      border: '1.5px solid var(--badge-live-border)',
+                      backgroundColor: 'var(--bg)',
                       fontSize: '13px',
                       fontWeight: '700',
-                      color: '#111827',
+                      color: 'var(--txt)',
                     }}
                   >
-                    <option value="">— Select winner —</option>
-                    <option value={teamA.id}>{teamA.name}</option>
-                    <option value={teamB.id}>{teamB.name}</option>
+                    <option value="" className="text-gray-400 bg-[var(--bg)]">— Select winner —</option>
+                    <option value={teamA.id} className="text-[var(--txt)] bg-[var(--bg)]">{teamA.name}</option>
+                    <option value={teamB.id} className="text-[var(--txt)] bg-[var(--bg)]">{teamB.name}</option>
                   </select>
                 </div>
               )}
@@ -688,22 +688,23 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               onClick={() => setAssistsExpanded(prev => !prev)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                width: '100%', background: '#f9fafb', border: '1px solid #e5e7eb',
+                width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)',
                 borderRadius: '10px', padding: '10px 14px', cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#374151' }}>
-                🅰️ Assists <span style={{ fontWeight: '400', color: '#9ca3af' }}>(optional)</span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--txt)' }}>
+                🅰️ Assists <span style={{ fontWeight: '400', color: 'var(--txt2)' }}>(optional)</span>
               </span>
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+              <span style={{ fontSize: '12px', color: 'var(--txt2)' }}>
                 {assistsExpanded ? '▲ Hide' : `▼ ${assists.length > 0 ? `${assists.length} added` : 'Add'}`}
               </span>
             </button>
 
             {assistsExpanded && (
               <div style={{
-                border: '1px solid #e5e7eb', borderTop: 'none',
+                border: '1px solid var(--border)', borderTop: 'none',
                 borderRadius: '0 0 10px 10px', padding: '12px 14px',
+                backgroundColor: 'var(--bg2)',
               }}>
                 {assists.map((assist, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -712,15 +713,15 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       onChange={e => updateAssist(i, 'team_id', e.target.value)}
                       style={{
                         width: '130px', flexShrink: 0, padding: '8px 10px',
-                        borderRadius: '8px', border: '1.5px solid #e5e7eb',
-                        fontSize: '12px', color: assist.team_id ? '#111827' : '#9ca3af',
+                        borderRadius: '8px', border: '1.5px solid var(--border)',
+                        fontSize: '12px', color: assist.team_id ? 'var(--txt)' : 'var(--txt2)',
                         outline: 'none',
-                        backgroundColor: '#ffffff',
+                        backgroundColor: 'var(--bg)',
                       }}
                     >
-                      <option value="" style={{ color: '#9ca3af' }}>Team</option>
-                      <option value={teamA.id} style={{ color: '#111827' }}>{teamA.name}</option>
-                      <option value={teamB.id} style={{ color: '#111827' }}>{teamB.name}</option>
+                      <option value="" className="text-gray-400">Team</option>
+                      <option value={teamA.id} className="text-[var(--txt)]">{teamA.name}</option>
+                      <option value={teamB.id} className="text-[var(--txt)]">{teamB.name}</option>
                     </select>
                     <PlayerSelector
                       value={assist.player_name}
@@ -741,7 +742,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                 ))}
                 <button type="button" onClick={addAssist}
                   style={{
-                    background: 'none', border: 'none', color: '#15803d',
+                    background: 'none', border: 'none', color: 'var(--green)',
                     fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: '4px 0',
                   }}>
                   + Add assist
@@ -770,24 +771,24 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                 {cards.map((c, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <select
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm min-w-[130px] focus:border-green-600 focus:ring-0 outline-none bg-white text-gray-900"
+                      className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm min-w-[130px] focus:border-green-600 focus:ring-0 outline-none bg-[var(--bg)] text-[var(--txt)]"
                       value={c.team_id}
                       onChange={e => updateCardRow(idx, { team_id: e.target.value })}
                     >
                       <option value="" className="text-gray-400">Team</option>
-                      <option value={teamA.id} className="text-gray-900">{teamA.name}</option>
-                      <option value={teamB.id} className="text-gray-900">{teamB.name}</option>
+                      <option value={teamA.id} className="text-[var(--txt)] bg-[var(--bg)]">{teamA.name}</option>
+                      <option value={teamB.id} className="text-[var(--txt)] bg-[var(--bg)]">{teamB.name}</option>
                     </select>
 
                     {renderPlayerInput(c, updates => updateCardRow(idx, updates), c.team_id)}
 
                     <select
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none bg-white text-gray-900"
+                      className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none bg-[var(--bg)] text-[var(--txt)]"
                       value={c.card_type}
                       onChange={e => updateCardRow(idx, { card_type: e.target.value })}
                     >
-                      <option value="yellow_card" className="text-gray-900">🟨 Yellow</option>
-                      <option value="red_card" className="text-gray-900">🟥 Red</option>
+                      <option value="yellow_card" className="text-[var(--txt)] bg-[var(--bg)]">🟨 Yellow</option>
+                      <option value="red_card" className="text-[var(--txt)] bg-[var(--bg)]">🟥 Red</option>
                     </select>
 
                     <input
@@ -795,7 +796,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       value={c.minute || ''}
                       onChange={e => updateCardRow(idx, { minute: e.target.value })}
                       placeholder="Min (opt)"
-                      className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
+                      className="w-24 rounded-lg border border-[var(--border)] px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none bg-[var(--bg)] text-[var(--txt)]"
                     />
 
                     <button
@@ -819,7 +820,7 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
               <div className="flex gap-4">
                 {hasPlayers ? (
                   <select
-                    className="flex-1 px-3 py-2 rounded-xl border border-gray-300 bg-white text-gray-900 text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
+                    className="flex-1 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] text-sm font-semibold focus:border-green-600 focus:ring-0 outline-none"
                     value={motm?.player_id || ''}
                     onChange={e => {
                       const allPlayers = [...playersA, ...playersB];
@@ -828,19 +829,19 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                       else setMotm(null);
                     }}
                   >
-                    <option value="">Select MOTM Player</option>
-                    <optgroup label={teamA.name}>
-                      {playersA.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <option value="" className="text-gray-400">Select MOTM Player</option>
+                    <optgroup label={teamA.name} className="bg-[var(--bg)] text-[var(--txt)]">
+                      {playersA.map(p => <option key={p.id} value={p.id} className="bg-[var(--bg)] text-[var(--txt)]">{p.name}</option>)}
                     </optgroup>
-                    <optgroup label={teamB.name}>
-                      {playersB.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <optgroup label={teamB.name} className="bg-[var(--bg)] text-[var(--txt)]">
+                      {playersB.map(p => <option key={p.id} value={p.id} className="bg-[var(--bg)] text-[var(--txt)]">{p.name}</option>)}
                     </optgroup>
                   </select>
                 ) : (
                   <input
                     type="text"
                     placeholder="Enter Man of the Match Player Name"
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
+                    className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--txt)] px-3 py-2 text-sm focus:border-green-600 focus:ring-0 outline-none"
                     value={motm?.player_name || ''}
                     onChange={e => setMotm({ player_id: '', player_name: e.target.value })}
                   />
@@ -853,9 +854,9 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
 
         {/* Footer Actions */}
         <div style={{
-          backgroundColor: '#f9fafb',
+          backgroundColor: 'var(--bg2)',
           padding: '16px 24px',
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid var(--border)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '12px',
@@ -866,16 +867,16 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
             style={{
               padding: '10px 18px',
               borderRadius: '12px',
-              border: '1.5px solid #d1d5db',
-              backgroundColor: '#ffffff',
-              color: '#374151',
+              border: '1.5px solid var(--border)',
+              backgroundColor: 'var(--bg)',
+              color: 'var(--txt)',
               fontSize: '14px',
               fontWeight: '700',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg2)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg)'}
           >
             Cancel
           </button>

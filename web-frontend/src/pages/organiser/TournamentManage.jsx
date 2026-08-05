@@ -25,32 +25,32 @@ const typeLabels = {
 const GroupStandingsTable = ({ title, rows, qualifiers, isLeagueCompleted }) => {
   if (!rows || rows.length === 0) return null;
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <h4 className="text-sm font-extrabold text-gray-900">📊 {title}</h4>
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/60">
+        <h4 className="text-sm font-extrabold text-[var(--txt)]">📊 {title}</h4>
         {qualifiers > 0 && (
-          <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full dark:bg-green-950/40 dark:text-green-400 dark:border-green-900/60">
             Top {qualifiers} qualify
           </span>
         )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-8">Pos</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Team</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-8">P</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-8">W</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-8">D</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-8">L</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-10">GF</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-10">GA</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-10">GD</th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-10">Pts</th>
+          <thead className="bg-zinc-50/50 dark:bg-zinc-900/30 border-b border-[var(--border)]">
+            <tr className="text-xs font-bold text-[var(--txt2)]">
+              <th className="px-3 py-2 text-center w-8">Pos</th>
+              <th className="px-3 py-2 text-left">Team</th>
+              <th className="px-3 py-2 text-center w-8">P</th>
+              <th className="px-3 py-2 text-center w-8">W</th>
+              <th className="px-3 py-2 text-center w-8">D</th>
+              <th className="px-3 py-2 text-center w-8">L</th>
+              <th className="px-3 py-2 text-center w-10">GF</th>
+              <th className="px-3 py-2 text-center w-10">GA</th>
+              <th className="px-3 py-2 text-center w-10">GD</th>
+              <th className="px-3 py-2 text-center w-10">Pts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-[var(--border)]">
             {rows.map((row, i) => {
               const gd = row.goal_difference ?? (row.goals_for - row.goals_against);
               const isQualifier = qualifiers > 0 && i < qualifiers;
@@ -58,12 +58,12 @@ const GroupStandingsTable = ({ title, rows, qualifiers, isLeagueCompleted }) => 
               const teamKey = row.team || row.team_id || i;
               
               const rowClass = isFirst 
-                ? 'bg-amber-50/40 hover:bg-amber-50/60'
+                ? 'bg-amber-50/40 hover:bg-amber-50/60 dark:bg-amber-950/10 dark:hover:bg-amber-950/20'
                 : isQualifier 
-                ? 'bg-green-50/30 hover:bg-green-50/50' 
+                ? 'bg-green-50/30 hover:bg-green-50/50 dark:bg-green-950/10 dark:hover:bg-green-950/20' 
                 : i % 2 === 0 
-                ? 'bg-white' 
-                : 'bg-gray-50/50';
+                ? 'bg-[var(--card)]' 
+                : 'bg-zinc-50/50 dark:bg-zinc-900/30';
 
               const borderLeftStyle = isFirst
                 ? '4px solid #eab308'
@@ -74,12 +74,12 @@ const GroupStandingsTable = ({ title, rows, qualifiers, isLeagueCompleted }) => 
               return (
                 <tr key={teamKey} className={rowClass}>
                   <td 
-                    className={`px-3 py-2.5 text-center font-bold ${isFirst ? 'text-amber-600 text-sm' : 'text-gray-400'}`}
+                    className={`px-3 py-2.5 text-center font-bold ${isFirst ? 'text-amber-600 text-sm' : 'text-[var(--txt2)]'}`}
                     style={{ borderLeft: borderLeftStyle }}
                   >
                     {isFirst ? '🥇' : i + 1}
                   </td>
-                  <td className="px-3 py-2.5 font-semibold text-gray-900">
+                  <td className="px-3 py-2.5 font-semibold text-[var(--txt)]">
                     {row.team_name}
                     {isLeagueCompleted && isFirst && (
                       <span className="ml-2 inline-flex items-center gap-0.5 text-[9px] font-black bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -87,16 +87,16 @@ const GroupStandingsTable = ({ title, rows, qualifiers, isLeagueCompleted }) => 
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-center text-gray-700">{row.played}</td>
-                  <td className="px-3 py-2.5 text-center text-green-700 font-medium">{row.won}</td>
-                  <td className="px-3 py-2.5 text-center text-gray-500">{row.drawn}</td>
+                  <td className="px-3 py-2.5 text-center text-[var(--txt2)]">{row.played}</td>
+                  <td className="px-3 py-2.5 text-center text-green-600 dark:text-green-400 font-medium">{row.won}</td>
+                  <td className="px-3 py-2.5 text-center text-[var(--txt2)]">{row.drawn}</td>
                   <td className="px-3 py-2.5 text-center text-red-500">{row.lost}</td>
-                  <td className="px-3 py-2.5 text-center text-gray-700">{row.goals_for}</td>
-                  <td className="px-3 py-2.5 text-center text-gray-700">{row.goals_against}</td>
-                  <td className={`px-3 py-2.5 text-center font-medium ${gd > 0 ? 'text-green-600' : gd < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                  <td className="px-3 py-2.5 text-center text-[var(--txt2)]">{row.goals_for}</td>
+                  <td className="px-3 py-2.5 text-center text-[var(--txt2)]">{row.goals_against}</td>
+                  <td className={`px-3 py-2.5 text-center font-medium ${gd > 0 ? 'text-green-600 dark:text-green-400' : gd < 0 ? 'text-red-500' : 'text-[var(--txt2)]'}`}>
                     {gd > 0 ? '+' : ''}{gd}
                   </td>
-                  <td className="px-3 py-2.5 text-center font-extrabold text-gray-900">{row.points}</td>
+                  <td className="px-3 py-2.5 text-center font-extrabold text-[var(--txt)]">{row.points}</td>
                 </tr>
               );
             })}
@@ -185,32 +185,32 @@ const TopScorersTable = ({ scorers }) => {
   const hasMore = (scorers || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col justify-between">
       <div>
-        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900">⚽ Top Scorers</h3>
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/60">
+          <h3 className="text-sm font-bold text-[var(--txt)]">⚽ Top Scorers</h3>
         </div>
         {!scorers || scorers.length === 0 ? (
-          <div className="px-4 py-5 text-center text-gray-400 text-xs">No goals recorded yet.</div>
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No goals recorded yet.</div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 w-8">#</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Player</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Team</th>
-                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-gray-400 w-14">⚽ Goals</th>
+            <thead className="bg-zinc-50/50 dark:bg-zinc-900/30 border-b border-[var(--border)]">
+              <tr className="text-[var(--txt2)] font-semibold text-[10px]">
+                <th className="px-3 py-1.5 text-left w-8">#</th>
+                <th className="px-3 py-1.5 text-left">Player</th>
+                <th className="px-3 py-1.5 text-left">Team</th>
+                <th className="px-3 py-1.5 text-center w-14">⚽ Goals</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[var(--border)] text-[var(--txt)] font-semibold">
               {visible.map((s, i) => (
-                <tr key={i} className={i === 0 ? 'bg-yellow-50' : 'hover:bg-gray-50'}>
+                <tr key={i} className={i === 0 ? 'bg-yellow-50/20 hover:bg-yellow-50/30 dark:bg-yellow-950/10 dark:hover:bg-yellow-950/20' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20'}>
                   <td className="px-3 py-1.5 text-center text-xs">
-                    {MEDAL(i) || <span className="text-gray-400 text-[11px]">{i + 1}</span>}
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
                   </td>
-                  <td className="px-3 py-1.5 font-semibold text-gray-900">{s.player_name}</td>
-                  <td className="px-3 py-1.5 text-gray-500">{s.team_name}</td>
-                  <td className="px-3 py-1.5 text-center font-bold text-green-700">{s.goals}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt)]">{s.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{s.team_name}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-green-700 dark:text-green-400">{s.goals}</td>
                 </tr>
               ))}
             </tbody>
@@ -218,10 +218,10 @@ const TopScorersTable = ({ scorers }) => {
         )}
       </div>
       {hasMore && (
-        <div className="px-3 py-2 border-t border-gray-100 text-center bg-gray-50/50">
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-zinc-50/50 dark:bg-zinc-900/30">
           <button
             onClick={() => setExpanded(e => !e)}
-            className="w-full py-1 text-xs font-bold text-green-700 hover:text-green-900 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center justify-center gap-1"
+            className="w-full py-1 text-xs font-bold text-green-700 hover:text-green-900 bg-green-50 hover:bg-green-100 dark:bg-green-950/40 dark:text-green-400 dark:hover:bg-green-950/60 rounded-lg transition-colors flex items-center justify-center gap-1"
           >
             {expanded ? '▲ Less' : '▼ More'}
           </button>
@@ -237,32 +237,32 @@ const TopAssistsTable = ({ assists }) => {
   const hasMore = (assists || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col justify-between">
       <div>
-        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900">🅰️ Top Assists</h3>
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/60">
+          <h3 className="text-sm font-bold text-[var(--txt)]">🅰️ Top Assists</h3>
         </div>
         {!assists || assists.length === 0 ? (
-          <div className="px-4 py-5 text-center text-gray-400 text-xs">No assists recorded yet.</div>
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No assists recorded yet.</div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 w-8">#</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Player</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Team</th>
-                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-gray-400 w-16">🅰️ Assists</th>
+            <thead className="bg-zinc-50/50 dark:bg-zinc-900/30 border-b border-[var(--border)]">
+              <tr className="text-[var(--txt2)] font-semibold text-[10px]">
+                <th className="px-3 py-1.5 text-left w-8">#</th>
+                <th className="px-3 py-1.5 text-left">Player</th>
+                <th className="px-3 py-1.5 text-left">Team</th>
+                <th className="px-3 py-1.5 text-center w-16">🅰️ Assists</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[var(--border)] text-[var(--txt)] font-semibold">
               {visible.map((a, i) => (
-                <tr key={i} className={i === 0 ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                <tr key={i} className={i === 0 ? 'bg-blue-50/20 hover:bg-blue-50/30 dark:bg-blue-950/10 dark:hover:bg-blue-950/20' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20'}>
                   <td className="px-3 py-1.5 text-center text-xs">
-                    {MEDAL(i) || <span className="text-gray-400 text-[11px]">{i + 1}</span>}
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
                   </td>
-                  <td className="px-3 py-1.5 font-semibold text-gray-900">{a.player_name}</td>
-                  <td className="px-3 py-1.5 text-gray-500">{a.team_name}</td>
-                  <td className="px-3 py-1.5 text-center font-bold text-blue-700">{a.assists}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt)]">{a.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{a.team_name}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-blue-700 dark:text-blue-400">{a.assists}</td>
                 </tr>
               ))}
             </tbody>
@@ -270,10 +270,10 @@ const TopAssistsTable = ({ assists }) => {
         )}
       </div>
       {hasMore && (
-        <div className="px-3 py-2 border-t border-gray-100 text-center bg-gray-50/50">
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-zinc-50/50 dark:bg-zinc-900/30">
           <button
             onClick={() => setExpanded(e => !e)}
-            className="w-full py-1 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1"
+            className="w-full py-1 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-950/60 rounded-lg transition-colors flex items-center justify-center gap-1"
           >
             {expanded ? '▲ Less' : '▼ More'}
           </button>
@@ -289,39 +289,39 @@ const GoalContributionsTable = ({ contributions }) => {
   const hasMore = (contributions || []).length > TOP_N;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col justify-between">
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col justify-between">
       <div>
-        <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-4 py-2.5 border-b border-[var(--border)] flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/60">
           <div>
-            <h3 className="text-sm font-bold text-gray-900">🎯 Goal Contributions</h3>
-            <p className="text-[10px] text-gray-400">Goals + Assists</p>
+            <h3 className="text-sm font-bold text-[var(--txt)]">🎯 Goal Contributions</h3>
+            <p className="text-[10px] text-[var(--txt2)]">Goals + Assists</p>
           </div>
         </div>
         {!contributions || contributions.length === 0 ? (
-          <div className="px-4 py-5 text-center text-gray-400 text-xs">No contributions recorded yet.</div>
+          <div className="px-4 py-5 text-center text-[var(--txt2)] text-xs">No contributions recorded yet.</div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 w-8">#</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Player</th>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400">Team</th>
-                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-gray-400 w-10">⚽</th>
-                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-gray-400 w-10">🅰️</th>
-                <th className="px-3 py-1.5 text-center text-[10px] font-semibold text-gray-400 w-14">Total</th>
+            <thead className="bg-zinc-50/50 dark:bg-zinc-900/30 border-b border-[var(--border)]">
+              <tr className="text-[var(--txt2)] font-semibold text-[10px]">
+                <th className="px-3 py-1.5 text-left w-8">#</th>
+                <th className="px-3 py-1.5 text-left">Player</th>
+                <th className="px-3 py-1.5 text-left">Team</th>
+                <th className="px-3 py-1.5 text-center w-10">⚽</th>
+                <th className="px-3 py-1.5 text-center w-10">🅰️</th>
+                <th className="px-3 py-1.5 text-center w-14">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[var(--border)] text-[var(--txt)] font-semibold">
               {visible.map((c, i) => (
-                <tr key={i} className={i === 0 ? 'bg-purple-50' : 'hover:bg-gray-50'}>
+                <tr key={i} className={i === 0 ? 'bg-purple-50/20 hover:bg-purple-50/30 dark:bg-purple-950/10 dark:hover:bg-purple-950/20' : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20'}>
                   <td className="px-3 py-1.5 text-center text-xs">
-                    {MEDAL(i) || <span className="text-gray-400 text-[11px]">{i + 1}</span>}
+                    {MEDAL(i) || <span className="text-[var(--txt2)] text-[11px]">{i + 1}</span>}
                   </td>
-                  <td className="px-3 py-1.5 font-semibold text-gray-900">{c.player_name}</td>
-                  <td className="px-3 py-1.5 text-gray-500">{c.team_name}</td>
-                  <td className="px-3 py-1.5 text-center text-green-700 font-medium">{c.goals}</td>
-                  <td className="px-3 py-1.5 text-center text-blue-700 font-medium">{c.assists}</td>
-                  <td className="px-3 py-1.5 text-center font-bold text-purple-700">{c.contributions}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt)]">{c.player_name}</td>
+                  <td className="px-3 py-1.5 text-[var(--txt2)]">{c.team_name}</td>
+                  <td className="px-3 py-1.5 text-center text-green-700 dark:text-green-400 font-medium">{c.goals}</td>
+                  <td className="px-3 py-1.5 text-center text-blue-700 dark:text-blue-400 font-medium">{c.assists}</td>
+                  <td className="px-3 py-1.5 text-center font-bold text-purple-700 dark:text-purple-400">{c.contributions}</td>
                 </tr>
               ))}
             </tbody>
@@ -329,10 +329,10 @@ const GoalContributionsTable = ({ contributions }) => {
         )}
       </div>
       {hasMore && (
-        <div className="px-3 py-2 border-t border-gray-100 text-center bg-gray-50/50">
+        <div className="px-3 py-2 border-t border-[var(--border)] text-center bg-zinc-50/50 dark:bg-zinc-900/30">
           <button
             onClick={() => setExpanded(e => !e)}
-            className="w-full py-1 text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-center gap-1"
+            className="w-full py-1 text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-400 dark:hover:bg-purple-950/60 rounded-lg transition-colors flex items-center justify-center gap-1"
           >
             {expanded ? '▲ Less' : '▼ More'}
           </button>
@@ -1867,7 +1867,9 @@ export default function TournamentManage() {
               <span className="text-zinc-400">·</span>
               
               {/* Status Badge */}
-              <StatusBadge status={tournament.status} />
+              <span data-theme="dark" className="inline-flex">
+                <StatusBadge status={tournament.status} />
+              </span>
             </div>
           </div>
         </div>
@@ -2369,12 +2371,12 @@ export default function TournamentManage() {
                           {expandedTeamId === team.id && (
                             <tr key={`${team.id}-players`} className="bg-green-50/40 dark:bg-zinc-900/40 border-b border-[var(--border)]">
                               <td colSpan={!isCompleted ? 6 : 5} className="p-4">
-                                <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '16px' }}>
+                                <div style={{ backgroundColor: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '16px' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#15803d' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--green)' }}>
                                       🏃 {team.name} — Player Roster ({(team.players || []).length})
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                                    <div style={{ fontSize: '11px', color: 'var(--txt2)' }}>
                                       Players will appear in dropdowns during result entry!
                                     </div>
                                   </div>
@@ -2388,7 +2390,9 @@ export default function TournamentManage() {
                                         flex: 1,
                                         padding: '8px 12px',
                                         borderRadius: '8px',
-                                        border: '1px solid #d1d5db',
+                                        border: '1px solid var(--border)',
+                                        backgroundColor: 'var(--bg)',
+                                        color: 'var(--txt)',
                                         fontSize: '13px',
                                         fontWeight: '600',
                                       }}
@@ -2421,7 +2425,7 @@ export default function TournamentManage() {
 
                                   {/* Players Roster Grid */}
                                   {(!team.players || team.players.length === 0) ? (
-                                    <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', padding: '8px 0' }}>
+                                    <div style={{ fontSize: '12px', color: 'var(--txt2)', fontStyle: 'italic', padding: '8px 0' }}>
                                       No players added yet. Add player names above for quick match result entry dropdowns!
                                     </div>
                                   ) : (
@@ -2436,9 +2440,9 @@ export default function TournamentManage() {
                                               alignItems: 'center',
                                               justifyContent: 'space-between',
                                               padding: '6px 10px',
-                                              backgroundColor: '#f9fafb',
+                                              backgroundColor: 'var(--card)',
                                               borderRadius: '8px',
-                                              border: '1px solid #e5e7eb',
+                                              border: '1px solid var(--border)',
                                               fontSize: '12px',
                                               fontWeight: '700',
                                             }}
@@ -2447,7 +2451,7 @@ export default function TournamentManage() {
                                               <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
                                                 <input
                                                   type="text"
-                                                  style={{ flex: 1, padding: '2px 6px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '12px' }}
+                                                  style={{ flex: 1, padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--txt)', fontSize: '12px' }}
                                                   value={editingPlayerName}
                                                   onChange={e => setEditingPlayerName(e.target.value)}
                                                   onKeyDown={e => {
@@ -2464,15 +2468,15 @@ export default function TournamentManage() {
                                                 <button
                                                   type="button"
                                                   onClick={() => setEditingPlayerId(null)}
-                                                  style={{ padding: '2px 6px', backgroundColor: '#e5e7eb', color: '#374151', borderRadius: '4px', border: 'none', fontSize: '11px' }}
+                                                  style={{ padding: '2px 6px', backgroundColor: 'var(--border)', color: 'var(--txt2)', borderRadius: '4px', border: 'none', fontSize: '11px' }}
                                                 >
                                                   ✕
                                                 </button>
                                               </div>
                                             ) : (
                                               <>
-                                                <span style={{ color: '#111827' }}>
-                                                  <span style={{ color: '#6b7280', fontSize: '11px', marginRight: '6px' }}>{pIdx + 1}.</span>
+                                                <span style={{ color: 'var(--txt)' }}>
+                                                  <span style={{ color: 'var(--txt2)', fontSize: '11px', marginRight: '6px' }}>{pIdx + 1}.</span>
                                                   {player.name}
                                                 </span>
                                                 <div style={{ display: 'flex', gap: '4px' }}>
@@ -3174,10 +3178,10 @@ export default function TournamentManage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', textShadow: '0 1px 3px rgba(0, 0, 0, 0.7)' }}>
                 Knockout Bracket
               </h3>
-              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '2px', textShadow: '0 1px 2px rgba(0, 0, 0, 0.6)' }}>
                 Click any match with two teams assigned to enter its result.
                 Winners automatically advance to the next round.
               </p>
@@ -3221,6 +3225,7 @@ export default function TournamentManage() {
           <BracketView
             tournamentId={tournament.id}
             editable={tournament.status === 'active'}
+            darkBackground={true}
             onEditMatch={(match) => {
               // Reuse the existing match result modal from the Matches tab
               const fullFixture = fixtures.find(f => f.id === match.id) || {
@@ -3417,8 +3422,8 @@ export default function TournamentManage() {
 
                   return (
                     <div key={key} style={{
-                      background: existing ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : 'var(--card)',
-                      border: existing ? '2px solid #86efac' : '1.5px solid var(--border)',
+                      background: existing ? 'var(--green-bg)' : 'var(--card)',
+                      border: existing ? '2px solid var(--green)' : '1.5px solid var(--border)',
                       borderRadius: '16px',
                       padding: '18px 20px',
                     }}>
@@ -3429,7 +3434,7 @@ export default function TournamentManage() {
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: '900', color: 'var(--txt)' }}>{label}</div>
                             {existing ? (
-                              <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '700' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--green)', fontWeight: '700' }}>
                                 ✅ {key === 'best_team' ? existing.team_name : (existing.player_display_name || existing.player_name)}
                                 {key !== 'best_team' && existing.team_name ? ` · ${existing.team_name}` : ''}
                               </div>
@@ -3444,9 +3449,9 @@ export default function TournamentManage() {
                             style={{
                               padding: '4px 10px',
                               borderRadius: '8px',
-                              border: '1.5px solid #fca5a5',
-                              backgroundColor: '#fef2f2',
-                              color: '#dc2626',
+                              border: '1.5px solid var(--badge-live-border)',
+                              backgroundColor: 'var(--badge-live-bg)',
+                              color: 'var(--badge-live-txt)',
                               fontSize: '11px',
                               fontWeight: '800',
                               cursor: 'pointer',
@@ -3530,7 +3535,7 @@ export default function TournamentManage() {
                           style={{
                             padding: '8px 18px',
                             borderRadius: '10px',
-                            backgroundColor: '#15803d',
+                            backgroundColor: 'var(--green)',
                             color: '#fff',
                             fontWeight: '800',
                             fontSize: '13px',
