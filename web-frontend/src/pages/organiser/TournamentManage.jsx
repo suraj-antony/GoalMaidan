@@ -1876,7 +1876,7 @@ export default function TournamentManage() {
 
         <button
           onClick={() => navigate(`/organiser/tournament/${id}/edit`)}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-white/20 text-white hover:bg-white/10 font-bold text-xs rounded-xl shadow-sm transition-all"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 font-bold text-xs rounded-xl shadow-sm transition-all bg-white text-zinc-900 hover:bg-zinc-100 border border-zinc-200 dark:bg-zinc-900/60 dark:text-white dark:hover:bg-zinc-800/60 dark:border-zinc-700/50"
         >
           <span>✏️</span>
           <span>Edit Setup</span>
@@ -2222,11 +2222,11 @@ export default function TournamentManage() {
           
           {/* Lock Banner when completed */}
           {isCompleted && (
-            <div className="p-4 bg-zinc-50 border border-zinc-200 dark:bg-zinc-800/40 dark:border-zinc-800 rounded-2xl flex items-start gap-3">
-              <Info size={20} className="text-zinc-500 shrink-0 mt-0.5" />
+            <div className="p-4 bg-zinc-50 border border-zinc-200 dark:bg-blue-950/30 dark:border-blue-900/50 rounded-2xl flex items-start gap-3">
+              <Info size={20} className="text-zinc-500 dark:text-blue-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold">Team list is locked</p>
-                <p className="text-xs text-[var(--txt2)] mt-0.5">The tournament has already been completed. Team roster details are locked.</p>
+                <p className="text-sm font-bold text-zinc-800 dark:text-blue-200">Team list is locked</p>
+                <p className="text-xs text-zinc-500 dark:text-blue-300/80 mt-0.5">The tournament has already been completed. Team roster details are locked.</p>
               </div>
             </div>
           )}

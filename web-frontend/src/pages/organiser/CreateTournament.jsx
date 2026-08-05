@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { ChevronRight, ChevronLeft, Check, Lock, Info, Shield, Zap, PenLine } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const STEPS = [
   'Basic Info',
@@ -81,6 +82,7 @@ function knockoutMatchCount(n) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CreateTournament() {
+  const { darkMode } = useTheme();
   const { id } = useParams();
   const isEdit = !!id;
   const { t } = useTranslation();
@@ -390,8 +392,8 @@ export default function CreateTournament() {
         textAlign: 'left',
         padding: '16px',
         borderRadius: '14px',
-        border: isSelected ? '2.5px solid #15803d' : '2px solid #e5e7eb',
-        backgroundColor: isSelected ? '#f0fdf4' : '#ffffff',
+        border: isSelected ? '2.5px solid var(--green)' : '2px solid var(--border)',
+        backgroundColor: isSelected ? 'var(--green-bg)' : 'var(--bg)',
         cursor: 'pointer',
         transition: 'all 0.15s ease',
         boxShadow: isSelected
@@ -401,13 +403,13 @@ export default function CreateTournament() {
       }}
       onMouseEnter={e => {
         if (!isSelected) {
-          e.currentTarget.style.borderColor = '#86efac';
+          e.currentTarget.style.borderColor = 'var(--green-hover)';
           e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
         }
       }}
       onMouseLeave={e => {
         if (!isSelected) {
-          e.currentTarget.style.borderColor = '#e5e7eb';
+          e.currentTarget.style.borderColor = 'var(--border)';
           e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
         }
       }}
@@ -421,7 +423,7 @@ export default function CreateTournament() {
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          backgroundColor: '#15803d',
+          backgroundColor: 'var(--green)',
           color: '#ffffff',
           padding: '2px 8px',
           borderRadius: '12px',
@@ -447,7 +449,7 @@ export default function CreateTournament() {
       <div style={{
         fontSize: '14px',
         fontWeight: '700',
-        color: isSelected ? '#15803d' : '#111827',
+        color: isSelected ? 'var(--green)' : 'var(--txt)',
         marginBottom: '5px',
         paddingRight: isSelected ? '28px' : '0',
       }}>
@@ -457,7 +459,7 @@ export default function CreateTournament() {
       {/* Description */}
       <div style={{
         fontSize: '12px',
-        color: isSelected ? '#166534' : '#6b7280',
+        color: isSelected ? 'var(--green)' : 'var(--txt2)',
         lineHeight: '1.5',
       }}>
         {desc}
@@ -543,16 +545,16 @@ export default function CreateTournament() {
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.75) 100%)',
+        background: darkMode ? 'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.75) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.85) 100%)',
       }} />
 
       <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
         {/* Page Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            {isEdit ? 'Edit' : 'Create'} <span className="text-green-400">Tournament</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+            {isEdit ? 'Edit' : 'Create'} <span className="text-green-600 dark:text-green-400">Tournament</span>
           </h1>
-          <p className="text-zinc-200 mt-2 max-w-md mx-auto">
+          <p className="text-zinc-700 dark:text-zinc-200 mt-2 max-w-md mx-auto">
             {isEdit
               ? 'Update the details, format, verification rules, stats, and configurations of your tournament.'
               : 'Set up a new football league, knockout, or mixed format tournament in minutes.'}
@@ -677,10 +679,10 @@ export default function CreateTournament() {
                       fontSize: '11px',
                       fontWeight: isCurrent ? '700' : '500',
                       color: isCompleted
-                        ? '#22c55e'
+                        ? (darkMode ? '#22c55e' : '#16a34a')
                         : isCurrent
-                        ? '#ffffff'
-                        : '#cbd5e1',
+                        ? (darkMode ? '#ffffff' : '#111827')
+                        : (darkMode ? '#cbd5e1' : '#6b7280'),
                       textAlign: 'center',
                       lineHeight: '1.3',
                       maxWidth: '70px',
@@ -700,17 +702,18 @@ export default function CreateTournament() {
       {/* Form Container */}
       <div 
         style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
+          backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-          '--txt': '#ffffff',
-          '--txt2': '#cbd5e1',
-          '--border': 'rgba(255, 255, 255, 0.15)',
-          '--bg': '#1e293b',
+          border: darkMode ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: darkMode ? '0 8px 32px 0 rgba(0, 0, 0, 0.2)' : '0 8px 32px 0 rgba(0, 0, 0, 0.08)',
+          '--txt': darkMode ? '#ffffff' : '#111827',
+          '--txt2': darkMode ? '#cbd5e1' : '#4b5563',
+          '--border': darkMode ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
+          '--bg': darkMode ? '#1e293b' : '#ffffff',
+          '--card': darkMode ? 'rgba(15, 23, 42, 0.3)' : '#f3f4f6',
         }}
-        className="rounded-2xl p-6 sm:p-8 transition-all text-white"
+        className="rounded-2xl p-6 sm:p-8 transition-all text-[var(--txt)]"
       >
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-sm font-semibold flex items-center gap-2">
@@ -772,9 +775,9 @@ export default function CreateTournament() {
                         borderRadius: '12px',
                         fontWeight: '800',
                         fontSize: '14px',
-                        border: isSelected ? '2.5px solid #15803d' : '2px solid #e5e7eb',
-                        backgroundColor: isSelected ? '#15803d' : '#ffffff',
-                        color: isSelected ? '#ffffff' : '#111827',
+                        border: isSelected ? '2.5px solid var(--green)' : '2px solid var(--border)',
+                        backgroundColor: isSelected ? 'var(--green)' : 'var(--bg)',
+                        color: isSelected ? '#ffffff' : 'var(--txt)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         boxShadow: isSelected
@@ -789,14 +792,14 @@ export default function CreateTournament() {
                       }}
                       onMouseEnter={e => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#86efac';
-                          e.currentTarget.style.backgroundColor = '#f9fafb';
+                          e.currentTarget.style.borderColor = 'var(--green-hover)';
+                          e.currentTarget.style.backgroundColor = 'var(--card)';
                         }
                       }}
                       onMouseLeave={e => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                          e.currentTarget.style.backgroundColor = 'var(--bg)';
                         }
                       }}
                     >
@@ -833,11 +836,11 @@ export default function CreateTournament() {
                 className={inputCls(fieldErrors.age_category)}
                 value={formData.age_category}
                 onChange={e => updateField('age_category', e.target.value)}
-                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                style={{ backgroundColor: 'var(--bg)', color: 'var(--txt)' }}
               >
-                <option value="" disabled style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>Select Age Category</option>
+                <option value="" disabled style={{ backgroundColor: 'var(--bg)', color: 'var(--txt)' }}>Select Age Category</option>
                 {AGE_CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value} style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>{cat.label}</option>
+                  <option key={cat.value} value={cat.value} style={{ backgroundColor: 'var(--bg)', color: 'var(--txt)' }}>{cat.label}</option>
                 ))}
               </select>
               {fieldErrors.age_category && <p className="mt-1.5 text-xs font-bold text-red-500">{fieldErrors.age_category}</p>}
@@ -914,8 +917,8 @@ export default function CreateTournament() {
                         textAlign: 'left',
                         padding: '16px',
                         borderRadius: '14px',
-                        border: isSelected ? '2.5px solid #15803d' : '2px solid #e5e7eb',
-                        backgroundColor: isSelected ? '#f0fdf4' : '#ffffff',
+                        border: isSelected ? '2.5px solid var(--green)' : '2px solid var(--border)',
+                        backgroundColor: isSelected ? 'var(--green-bg)' : 'var(--bg)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         boxShadow: isSelected
@@ -924,13 +927,13 @@ export default function CreateTournament() {
                       }}
                       onMouseEnter={e => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#86efac';
+                          e.currentTarget.style.borderColor = 'var(--green-hover)';
                           e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
                         }
                       }}
                       onMouseLeave={e => {
                         if (!isSelected) {
-                          e.currentTarget.style.borderColor = '#e5e7eb';
+                          e.currentTarget.style.borderColor = 'var(--border)';
                           e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
                         }
                       }}
@@ -944,7 +947,7 @@ export default function CreateTournament() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px',
-                          backgroundColor: '#15803d',
+                          backgroundColor: 'var(--green)',
                           color: '#ffffff',
                           padding: '2px 8px',
                           borderRadius: '12px',
@@ -971,7 +974,7 @@ export default function CreateTournament() {
                       <div style={{
                         fontSize: '15px',
                         fontWeight: '700',
-                        color: isSelected ? '#15803d' : '#111827',
+                        color: isSelected ? 'var(--green)' : 'var(--txt)',
                         marginBottom: '6px',
                       }}>
                         {type.name}
@@ -980,7 +983,7 @@ export default function CreateTournament() {
                       {/* Description */}
                       <div style={{
                         fontSize: '12px',
-                        color: isSelected ? '#166534' : '#6b7280',
+                        color: isSelected ? 'var(--green)' : 'var(--txt2)',
                         lineHeight: '1.5',
                       }}>
                         {type.desc}
@@ -994,7 +997,7 @@ export default function CreateTournament() {
                           left: '0',
                           right: '0',
                           height: '3px',
-                          backgroundColor: '#15803d',
+                          backgroundColor: 'var(--green)',
                           borderRadius: '0 0 12px 12px',
                         }} />
                       )}

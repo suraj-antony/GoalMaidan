@@ -400,9 +400,9 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                     setOverrideWinnerId('');
                   }}
                   style={{
-                    width: '100%', textAlign: 'center',
+                    width: '100%', height: '52px', lineHeight: '52px', textAlign: 'center',
                     fontSize: '28px', fontWeight: '800', color: 'var(--txt)',
-                    padding: '10px', borderRadius: '10px',
+                    padding: '0 10px', borderRadius: '10px',
                     border: '2px solid var(--border)', backgroundColor: 'var(--bg)',
                     outline: 'none', marginBottom: '10px',
                   }}
@@ -480,9 +480,9 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                     setOverrideWinnerId('');
                   }}
                   style={{
-                    width: '100%', textAlign: 'center',
+                    width: '100%', height: '52px', lineHeight: '52px', textAlign: 'center',
                     fontSize: '28px', fontWeight: '800', color: 'var(--txt)',
-                    padding: '10px', borderRadius: '10px',
+                    padding: '0 10px', borderRadius: '10px',
                     border: '2px solid var(--border)', backgroundColor: 'var(--bg)',
                     outline: 'none', marginBottom: '10px',
                   }}
@@ -570,10 +570,12 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                     onChange={e => { setPenaltyA(e.target.value); setOverrideWinnerId(''); }}
                     style={{
                       width: '72px',
+                      height: '48px',
+                      lineHeight: '48px',
                       textAlign: 'center',
                       fontSize: '28px',
                       fontWeight: '900',
-                      padding: '8px',
+                      padding: '0 8px',
                       border: '2px solid var(--penalty-border)',
                       borderRadius: '12px',
                       backgroundColor: 'var(--bg)',
@@ -594,10 +596,12 @@ export default function MatchResultModal({ fixture, tournament, onClose, onSave 
                     onChange={e => { setPenaltyB(e.target.value); setOverrideWinnerId(''); }}
                     style={{
                       width: '72px',
+                      height: '48px',
+                      lineHeight: '48px',
                       textAlign: 'center',
                       fontSize: '28px',
                       fontWeight: '900',
-                      padding: '8px',
+                      padding: '0 8px',
                       border: '2px solid var(--penalty-border)',
                       borderRadius: '12px',
                       backgroundColor: 'var(--bg)',
