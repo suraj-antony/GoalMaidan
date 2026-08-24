@@ -1824,19 +1824,9 @@ export default function TournamentManage() {
     <div style={{
       minHeight: '100vh',
       width: '100%',
-      position: 'relative',
-      backgroundImage: `url('https://images.pexels.com/photos/9786378/pexels-photo-9786378.jpeg')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundAttachment: window.innerWidth < 768 ? 'scroll' : 'fixed',
+      backgroundColor: 'var(--bg2)',
     }}>
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.72)', // Darker slate overlay to keep background photo elegant and dark
-      }} />
-      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10 text-[var(--txt)]">
+      <div className="max-w-6xl mx-auto px-4 py-8 relative text-[var(--txt)]">
       
       {/* Toast Notification */}
       {toast && (
@@ -1854,20 +1844,20 @@ export default function TournamentManage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 border border-white/20 rounded-xl hover:bg-white/10 text-white transition-colors"
+            className="p-2 border border-[var(--border)] rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-[var(--txt)] transition-colors"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-black text-white">{tournament.name}</h1>
+            <h1 className="text-2xl font-black text-zinc-900 dark:text-white">{tournament.name}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--txt2)] uppercase tracking-wider">
                 🛡️ {tournament.area_name}
               </span>
-              <span className="text-zinc-400">·</span>
+              <span className="text-[var(--txt2)]">·</span>
               
               {/* Status Badge */}
-              <span data-theme="dark" className="inline-flex">
+              <span className="inline-flex">
                 <StatusBadge status={tournament.status} />
               </span>
             </div>
@@ -1884,7 +1874,7 @@ export default function TournamentManage() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex border-b border-white/15 gap-2 overflow-x-auto pb-px mb-6 scrollbar-none">
+      <div className="flex border-b border-[var(--border)] gap-2 overflow-x-auto pb-px mb-6 scrollbar-none">
         {tabs.map(tab => {
           const isAct = activeTab === tab.key;
           return (
@@ -1893,8 +1883,8 @@ export default function TournamentManage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
                 ${isAct 
-                  ? 'border-emerald-400 text-emerald-400 font-black' 
-                  : 'border-transparent text-zinc-300 hover:text-white'}`}
+                  ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-black' 
+                  : 'border-transparent text-[var(--txt2)] hover:text-[var(--txt)]'}`}
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>

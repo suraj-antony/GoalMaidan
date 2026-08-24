@@ -138,20 +138,9 @@ export default function OrganiserDashboard() {
     <div style={{
       minHeight: '100vh',
       width: '100%',
-      position: 'relative',
-      backgroundImage: `url('https://images.pexels.com/photos/28735311/pexels-photo-28735311.jpeg')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundAttachment: 'fixed',
+      backgroundColor: 'var(--bg2)',
     }}>
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.7) 100%)',
-      }} />
-
-      <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative z-10">
+      <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative">
         
         {/* Toast Notification */}
         {toast && (

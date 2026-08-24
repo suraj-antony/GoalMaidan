@@ -534,21 +534,10 @@ export default function CreateTournament() {
     <div style={{
       minHeight: '100vh',
       width: '100%',
-      position: 'relative',
-      backgroundImage: `url('https://static.vecteezy.com/system/resources/previews/039/098/917/non_2x/ai-generated-african-children-playing-soccer-at-village-street-photo.jpg')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundAttachment: 'fixed',
+      backgroundColor: 'var(--bg2)',
       padding: '24px 0 80px',
     }}>
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: darkMode ? 'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.75) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.85) 100%)',
-      }} />
-
-      <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
+      <div className="max-w-4xl mx-auto px-4 py-8 relative">
         {/* Page Title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">

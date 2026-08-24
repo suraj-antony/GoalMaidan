@@ -51,41 +51,24 @@ export default function Register() {
     <div style={{
       minHeight: '100vh',
       width: '100%',
-      position: 'relative',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 16px',
-      backgroundImage: `url('https://images.pexels.com/photos/36650896/pexels-photo-36650896.jpeg')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
+      backgroundColor: 'var(--bg2)',
     }}>
       <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(180deg, rgba(0,20,10,0.55) 0%, rgba(0,20,10,0.7) 100%)',
-      }} />
-
-      <div style={{
         position: 'relative',
-        zIndex: 1,
         width: '100%',
         maxWidth: '440px',
       }}>
         <div 
           style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
-            '--txt': '#ffffff',
-            '--txt2': '#94a3b8',
-            '--border': 'rgba(255, 255, 255, 0.15)',
-            '--bg': '#1e293b',
+            backgroundColor: 'var(--card)',
+            border: '1px solid var(--border)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.08)',
           }}
-          className="w-full p-6 rounded-2xl text-white"
+          className="w-full p-6 rounded-2xl text-[var(--txt)]"
         >
           <div className="text-center mb-6">
             <div style={{
@@ -95,7 +78,7 @@ export default function Register() {
             }}>
               ⚽
             </div>
-            <h2 className="text-2xl font-bold text-emerald-400">{t('register')}</h2>
+            <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{t('register')}</h2>
           </div>
           
           {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">{error}</div>}
@@ -274,8 +257,8 @@ export default function Register() {
           </form>
 
           <div className="mt-6 text-center text-sm border-t border-[var(--border)] pt-4">
-            <p className="mb-2">Already have an account? <Link to="/login" className="text-emerald-400 font-bold hover:text-emerald-300 hover:underline">Login here</Link></p>
-            <Link to="/language" className="text-emerald-400 font-bold hover:text-emerald-300 hover:underline">{t('language_select')}</Link>
+            <p className="mb-2 text-[var(--txt2)]">Already have an account? <Link to="/login" className="text-emerald-600 dark:text-emerald-400 font-bold hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline">Login here</Link></p>
+            <Link to="/language" className="text-emerald-600 dark:text-emerald-400 font-bold hover:text-emerald-500 dark:hover:text-emerald-300 hover:underline">{t('language_select')}</Link>
           </div>
         </div>
       </div>
